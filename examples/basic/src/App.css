@@ -1,0 +1,67 @@
+button {
+  border: 0;
+  border-radius: 16px;
+  cursor: pointer;
+  font: inherit;
+  padding: 12px 16px;
+}
+
+.device {
+  background: white;
+  height: 100%;
+  margin: 0 auto;
+  max-width: 560px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.page {
+  min-height: 100%;
+  padding: 72px 28px 32px;
+}
+
+.home-page {
+  background: #f8f9ff;
+}
+
+.details-page {
+  background: #fdfdfd;
+}
+
+.route-icon {
+  align-items: center;
+  background: linear-gradient(135deg, #6750a4, #9a82db);
+  border-radius: 14px;
+  color: white;
+  display: flex;
+  font-size: 24px;
+  font-weight: 700;
+  height: 52px;
+  justify-content: center;
+  margin: 18px 0;
+  width: 52px;
+}
+
+.route-icon-large {
+  border-radius: 28px;
+  font-size: 48px;
+  height: 136px;
+  margin-bottom: 32px;
+  width: 136px;
+}
+
+.actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 36px;
+}
+
+.actions button:first-child {
+  background: #151b2c;
+  color: #f7f7f7;
+}
+
+.actions button:not(:first-child) {
+  background: #fdfdfd;
+  color: #25314a;
+}
