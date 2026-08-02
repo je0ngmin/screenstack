@@ -158,6 +158,29 @@ export function CupertinoPageRoute({
     [],
   )
 
+  useEffect(() => {
+    const page = pageRef.current
+    if (!page) {
+      return
+    }
+
+    const blockActiveGestureScroll = (event: TouchEvent) => {
+      if (!dragRef.current?.active) {
+        return
+      }
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
+    page.addEventListener('touchmove', blockActiveGestureScroll, {
+      capture: true,
+      passive: false,
+    })
+    return () => {
+      page.removeEventListener('touchmove', blockActiveGestureScroll, true)
+    }
+  }, [])
+
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = pageRef.current?.getBoundingClientRect()
     if (!bounds) {

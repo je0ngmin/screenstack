@@ -2,10 +2,10 @@ import type { CSSProperties } from 'react'
 
 export const navigatorStyle: CSSProperties = {
   isolation: 'isolate',
-  height: '100%',
   overflow: 'hidden',
   position: 'relative',
   width: '100%',
+  height: '100%',
 }
 
 export const screenStyle: CSSProperties = {
