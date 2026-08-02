@@ -207,10 +207,7 @@ export function CupertinoZoomTransitionPageRoute({
         return
       }
 
-      const baseTransform = savedStyle.transform
-        ? `${savedStyle.transform} `
-        : ''
-      previousScreen.style.transform = `${baseTransform}scale(${scale}, ${scale})`
+      previousScreen.style.transform = `scale(${scale}, ${scale})`
       previousScreen.style.transition =
         reducedMotion || duration <= 0
           ? 'none'
@@ -635,11 +632,10 @@ export function CupertinoZoomTransitionPageRoute({
             style={{
               height: geometry?.pageHeight ?? '100%',
               left: 0,
-              overflow: dragOffset !== null ? 'hidden' : 'auto',
-              overscrollBehavior: dragOffset !== null ? 'none' : 'auto',
+              overflow: 'auto',
               position: 'absolute',
               top: 0,
-              touchAction: dragOffset !== null ? 'none' : 'pan-y',
+              touchAction: 'pan-y',
               transform: routeContentTransform,
               transformOrigin: 'center center',
               transition: contentTransition,
@@ -655,6 +651,10 @@ export function CupertinoZoomTransitionPageRoute({
         <InteractionGuard
           aria-hidden="true"
           data-cupertino-zoom-swipe-guard=""
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+          }}
           onPointerCancel={(event) => settleDrag(event, true)}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}

@@ -101,11 +101,8 @@ export function CupertinoPageRoute({
 
       const clampedProgress = Math.min(1, Math.max(0, progress))
       const offset = -PREVIOUS_ROUTE_OFFSET * (1 - clampedProgress)
-      const baseTransform = savedStyle.transform
-        ? `${savedStyle.transform} `
-        : ''
       previousScreen.style.transform =
-        `${baseTransform}translate3d(${offset}%, 0, 0)`
+        `translate3d(${offset}%, 0, 0)`
       previousScreen.style.transition =
         reducedMotion || duration <= 0
           ? 'none'
@@ -325,12 +322,7 @@ export function CupertinoPageRoute({
           ...pageRouteStyle,
           ...style,
           boxShadow: '-2px 0 14px rgb(0 0 0 / 18%)',
-          overflow:
-            dragOffset !== null
-              ? 'hidden'
-              : style?.overflow ?? pageRouteStyle.overflow,
-          overscrollBehavior: dragOffset !== null ? 'none' : 'auto',
-          touchAction: dragOffset !== null ? 'none' : 'pan-y',
+          touchAction: 'pan-y',
           transform,
           transition,
           willChange: phase === 'covered' ? 'auto' : 'transform',
@@ -342,6 +334,10 @@ export function CupertinoPageRoute({
         <InteractionGuard
           aria-hidden="true"
           data-cupertino-swipe-guard=""
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+          }}
           onPointerCancel={(event) => settleDrag(event, true)}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
