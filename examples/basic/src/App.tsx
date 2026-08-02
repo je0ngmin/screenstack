@@ -15,36 +15,30 @@ function Details({ title }: { title: string }) {
 
   return (
     <main className="page details-page">
-      <Hero id="eyebrow1">
+      {/* <Hero id="eyebrow1"> */}
       <span className="eyebrow">Page route</span>
-      </Hero>
-      <Hero id="route-icon1">
+      {/* </Hero> */}
+      {/* <Hero id="route-icon1"> */}
         <div className="route-icon route-icon-large">R</div>
-      </Hero>
-      <Hero id="title1">
+      {/* </Hero> */}
+      {/* <Hero id="title1"> */}
       <h1>{title}</h1>
-      </Hero>
+      {/* </Hero> */}
       <p>Use the back button or swipe right from the left edge.</p>
       <button onClick={navigation.pop}>Back</button>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
-      ㅇㄴㅇㄴㅁㅁㅇㄴㅁㅇㅁㄴ<br/>
+        <button
+          data-testid="open-cupertino"
+          onClick={() =>
+            navigation.push(
+              <CupertinoPageRoute>
+                <Details title="Cupertino route" />
+              </CupertinoPageRoute>,
+            )
+          }
+        >
+          Open Cupertino
+        </button>
+      {Array(100).fill(0).map((v) => <div>스크롤 공간</div>)}
     </main>
   )
 }

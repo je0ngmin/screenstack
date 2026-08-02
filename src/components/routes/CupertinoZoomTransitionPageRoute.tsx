@@ -10,6 +10,7 @@ import { usePageRouteTransition } from '../../hooks/usePageRouteTransition'
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion'
 import type { CupertinoZoomTransitionPageRouteProps } from '../../types/navigation'
 import { pageRouteStyle } from '../../utils/routeStyles'
+import { isInsideHorizontalScrollArea } from '../../utils/swipeGesture'
 import {
   createSourceZoomTransition,
   type SourceZoomTransitionController,
@@ -21,8 +22,9 @@ const INTERACTIVE_SETTLE_DURATION = 420
 const TRANSITION_EASING = 'cubic-bezier(0.32, 0.72, 0, 1)'
 const SWIPE_COMPLETION_RATIO = 0.33
 const SWIPE_COMPLETION_VELOCITY = 0.5
-const PREVIOUS_ROUTE_SCALE = 0.96
+const PREVIOUS_ROUTE_SCALE = 0.9
 const OPACITY_HANDOFF_PROGRESS = 0.65
+const SWIPE_ACTIVATION_DISTANCE = 20
 
 interface SourceGeometry {
   borderRadius: string
@@ -38,6 +40,7 @@ interface SourceGeometry {
 }
 
 interface DragState {
+  active: boolean
   lastTime: number
   lastX: number
   pointerId: number
@@ -57,6 +60,12 @@ type SettleTarget = 'source' | 'rest' | null
 interface SavedPreviousScreenStyle {
   transform: string
   transformOrigin: string
+  transition: string
+  willChange: string
+}
+
+interface SavedPreviousRouteStyle {
+  element: HTMLElement
   transition: string
   willChange: string
 }
@@ -89,12 +98,12 @@ function readSourceGeometry(
     contentTranslateY:
       sourceBounds.top + sourceBounds.height / 2 -
       (pageBounds.top + pageBounds.height / 2),
-    leftInset: Math.max(0, sourceBounds.left - pageBounds.left),
+    leftInset: sourceBounds.left - pageBounds.left,
     pageHeight: pageBounds.height,
     pageWidth: pageBounds.width,
     sourceHeight: sourceBounds.height,
     sourceWidth: sourceBounds.width,
-    topInset: Math.max(0, sourceBounds.top - pageBounds.top),
+    topInset: sourceBounds.top - pageBounds.top,
   }
 }
 
@@ -109,7 +118,6 @@ function contentTransform(geometry: SourceGeometry | null) {
 export function CupertinoZoomTransitionPageRoute({
   children,
   className,
-  edgeWidth = 24,
   sourceRef,
   style,
   swipeBackEnabled = true,
@@ -135,6 +143,7 @@ export function CupertinoZoomTransitionPageRoute({
   const previousScreenStyleRef = useRef<SavedPreviousScreenStyle | null>(
     null,
   )
+  const previousRouteStyleRef = useRef<SavedPreviousRouteStyle | null>(null)
   const [entered, setEntered] = useState(false)
   const [geometry, setGeometry] = useState<SourceGeometry | null>(null)
   const [geometryReady, setGeometryReady] = useState(false)
@@ -171,6 +180,22 @@ export function CupertinoZoomTransitionPageRoute({
     }
     previousScreen.style.transformOrigin = 'center center'
     previousScreen.style.willChange = 'transform'
+    const previousRoute = Array.from(previousScreen.children).find(
+      (element): element is HTMLElement =>
+        element instanceof HTMLElement &&
+        element.dataset.pageRoute === 'cupertino',
+    )
+    if (previousRoute) {
+      previousRouteStyleRef.current = {
+        element: previousRoute,
+        transition: previousRoute.style.transition,
+        willChange: previousRoute.style.willChange,
+      }
+      previousRoute.style.transform = 'translate3d(0, 0, 0)'
+      previousRoute.style.transition = 'none'
+      previousRoute.style.willChange = 'auto'
+      previousRoute.getBoundingClientRect()
+    }
     return previousScreen
   }, [])
 
@@ -200,8 +225,18 @@ export function CupertinoZoomTransitionPageRoute({
     if (previousScreen && savedStyle) {
       Object.assign(previousScreen.style, savedStyle)
     }
+    const previousRouteStyle = previousRouteStyleRef.current
+    if (previousRouteStyle?.element.isConnected) {
+      previousRouteStyle.element.style.transform =
+        'translate3d(0, 0, 0)'
+      previousRouteStyle.element.style.transition =
+        previousRouteStyle.transition
+      previousRouteStyle.element.style.willChange =
+        previousRouteStyle.willChange
+    }
     previousScreenRef.current = null
     previousScreenStyleRef.current = null
+    previousRouteStyleRef.current = null
   }, [])
 
   const hideGestureSource = useCallback(() => {
@@ -223,10 +258,10 @@ export function CupertinoZoomTransitionPageRoute({
   }, [sourceRef])
 
   useLayoutEffect(() => {
-    measureSource()
-    pageRef.current?.getBoundingClientRect()
     preparePreviousScreen()
     setPreviousScreenScale(1, 0)
+    measureSource()
+    pageRef.current?.getBoundingClientRect()
     pushSourceFlightRef.current = createSourceZoomTransition(
       sourceRef.current,
       pageRef.current,
@@ -334,30 +369,19 @@ export function CupertinoZoomTransitionPageRoute({
     if (!bounds) {
       return
     }
-    const localX = event.clientX - bounds.left
-
     if (
       !swipeBackEnabled ||
       !route.canPop ||
       route.phase !== 'active' ||
-      localX < 0 ||
-      localX > edgeWidth ||
+      isInsideHorizontalScrollArea(event.target, pageRef.current) ||
       (event.pointerType === 'mouse' && event.button !== 0)
     ) {
       return
     }
 
-    if (!route.startPopGesture()) {
-      return
-    }
-
-    setPreviousScreenScale(1, 0)
-    measureSource()
-    pushSourceFlightRef.current?.cancel()
-    hideGestureSource()
-    setPreviousScreenScale(PREVIOUS_ROUTE_SCALE, 0)
     const width = bounds.width || window.innerWidth
     dragRef.current = {
+      active: false,
       lastTime: event.timeStamp,
       lastX: event.clientX,
       pointerId: event.pointerId,
@@ -366,10 +390,6 @@ export function CupertinoZoomTransitionPageRoute({
       velocity: 0,
       width,
     }
-    setSettleTarget(null)
-    setDragOffset({ x: 0, y: 0 })
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-    event.preventDefault()
   }
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -378,9 +398,40 @@ export function CupertinoZoomTransitionPageRoute({
       return
     }
 
+    const deltaX = event.clientX - drag.startX
+    const deltaY = event.clientY - drag.startY
+    if (!drag.active) {
+      if (
+        Math.abs(deltaY) >= SWIPE_ACTIVATION_DISTANCE &&
+        Math.abs(deltaY) >= Math.max(0, deltaX)
+      ) {
+        dragRef.current = null
+        return
+      }
+      if (
+        deltaX < SWIPE_ACTIVATION_DISTANCE ||
+        deltaX <= Math.abs(deltaY)
+      ) {
+        return
+      }
+      if (!route.startPopGesture()) {
+        dragRef.current = null
+        return
+      }
+      drag.active = true
+      setPreviousScreenScale(1, 0)
+      measureSource()
+      pushSourceFlightRef.current?.cancel()
+      hideGestureSource()
+      setPreviousScreenScale(PREVIOUS_ROUTE_SCALE, 0)
+      setSettleTarget(null)
+      setDragOffset({ x: 0, y: 0 })
+      event.currentTarget.setPointerCapture?.(event.pointerId)
+    }
+
     const progress = Math.min(
       1,
-      Math.max(0, (event.clientX - drag.startX) / drag.width),
+      Math.max(0, deltaX / drag.width),
     )
     const elapsed = Math.max(1, event.timeStamp - drag.lastTime)
     drag.velocity = Math.max(0, (event.clientX - drag.lastX) / elapsed)
@@ -389,7 +440,7 @@ export function CupertinoZoomTransitionPageRoute({
 
     setDragOffset({
       x: progress * drag.width,
-      y: event.clientY - drag.startY,
+      y: deltaY,
     })
     setPreviousScreenScale(
       PREVIOUS_ROUTE_SCALE + (1 - PREVIOUS_ROUTE_SCALE) * progress,
@@ -397,6 +448,7 @@ export function CupertinoZoomTransitionPageRoute({
     )
     route.updatePopGesture(progress)
     event.preventDefault()
+    event.stopPropagation()
   }
 
   const settleDrag = (
@@ -405,6 +457,11 @@ export function CupertinoZoomTransitionPageRoute({
   ) => {
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId) {
+      return
+    }
+
+    if (!drag.active) {
+      dragRef.current = null
       return
     }
 
@@ -418,6 +475,8 @@ export function CupertinoZoomTransitionPageRoute({
         drag.velocity >= SWIPE_COMPLETION_VELOCITY)
 
     dragRef.current = null
+    event.preventDefault()
+    event.stopPropagation()
 
     if (shouldPop) {
       setSettleTarget('source')
@@ -518,9 +577,7 @@ export function CupertinoZoomTransitionPageRoute({
       ? 'none'
       : `transform ${activeDuration}ms ${TRANSITION_EASING}`
   const showSwipeGuard =
-    swipeBackEnabled &&
-    route.canPop &&
-    (route.phase === 'active' || dragOffset !== null)
+    swipeBackEnabled && route.canPop && dragOffset !== null
 
   return (
     <>
@@ -529,6 +586,10 @@ export function CupertinoZoomTransitionPageRoute({
         data-page-route="cupertino-zoom"
         data-route-phase={route.phase}
         data-swipe-active={dragOffset !== null}
+        onPointerCancelCapture={(event) => settleDrag(event, true)}
+        onPointerDownCapture={handlePointerDown}
+        onPointerMoveCapture={handlePointerMove}
+        onPointerUpCapture={settleDrag}
         style={{
           ...pageRouteStyle,
           background: 'transparent',
@@ -574,9 +635,11 @@ export function CupertinoZoomTransitionPageRoute({
             style={{
               height: geometry?.pageHeight ?? '100%',
               left: 0,
-              overflow: 'auto',
+              overflow: dragOffset !== null ? 'hidden' : 'auto',
+              overscrollBehavior: dragOffset !== null ? 'none' : 'auto',
               position: 'absolute',
               top: 0,
+              touchAction: dragOffset !== null ? 'none' : 'pan-y',
               transform: routeContentTransform,
               transformOrigin: 'center center',
               transition: contentTransition,
@@ -604,12 +667,12 @@ export function CupertinoZoomTransitionPageRoute({
             overscrollBehavior: 'none',
             pointerEvents: 'auto',
             position: 'absolute',
-            right: dragOffset !== null ? 0 : 'auto',
+            right: 0,
             top: 0,
             touchAction: 'none',
             userSelect: 'none',
             WebkitUserSelect: 'none',
-            width: dragOffset !== null ? 'auto' : edgeWidth,
+            width: 'auto',
             zIndex: 1,
           }}
         />
