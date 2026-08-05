@@ -46,25 +46,37 @@ interface PageRouteTransition {
   canPop: boolean
   phase: 'active' | 'covered' | 'exiting'
   popGestureInProgress: boolean
-  registerHeroTransition(config: {
-    push: { duration: number; easing: string }
-    pop: { duration: number; easing: string }
+  beginPopGesture(): PageRoutePopGesture | null
+  registerTransition(config: {
+    push: { duration: number; easing: string; curve?: (progress: number) => number }
+    pop: { duration: number; easing: string; curve?: (progress: number) => number }
   }): () => void
-  startPopGesture(): boolean
-  updatePopGesture(progress: number): void
-  cancelPopGesture(duration?: number): void
-  completePopGesture(duration?: number): void
+}
+
+interface PageRoutePopGesture {
+  update(progress: number): void
+  cancel(duration?: number): void
+  complete(duration?: number): void
 }
 ```
 
-`progress`는 `0`부터 `1` 사이로 제한됩니다. 제스처를 시작한 후 진행률을 전달하고,
-마지막에는 취소하거나 완료해야 합니다. duration은 사용자 정의 라우트의 마무리
-애니메이션 시간과 맞추세요.
+`beginPopGesture()`는 제스처를 시작할 수 없으면 `null`을 반환합니다. 반환된 controller는
+해당 제스처와 Hero 이동을 함께 소유합니다. progress는 `0`부터 `1` 사이로 제한됩니다.
+사용자 정의 Route의 마무리 duration을 전달해 `cancel()` 또는 `complete()`로 정확히 한 번
+종료하세요.
 
-`registerHeroTransition()`은 layout effect에서 호출하고 반환되는 정리 함수를 그대로
+드래그 중 progress는 그대로 적용되어 Hero가 손가락을 따라갑니다. 손을 놓은 뒤
+`cancel()`과 `complete()`는 등록된 pop `curve`를 사용합니다.
+`createCubicBezierCurve(x1, y1, x2, y2)`를 사용하면 Route의 inline
+`cubic-bezier(...)` easing과 동일한 progress 함수를 만들 수 있습니다.
+
+기존 네 개 함수로 구성된 pop 제스처 API는 호환성을 위해 유지되지만 deprecated 처리됩니다.
+
+`registerTransition()`은 layout effect에서 호출하고 반환되는 정리 함수를 그대로
 반환하세요. 그러면 일반 push와 pop의 Hero 전환이 사용자 정의 라우트의 inline
 transition duration 및 easing과 동기화됩니다. 등록된 pop duration은 종료 화면을
-스택에서 제거하는 시점에도 사용됩니다.
+스택에서 제거하는 시점에도 사용됩니다. `registerHeroTransition()`은 호환성을 위한
+deprecated alias로 유지됩니다.
 
 ## `useStackNavigation()`
 

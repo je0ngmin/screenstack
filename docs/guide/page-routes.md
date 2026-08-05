@@ -163,12 +163,14 @@ import {
   useState,
 } from 'react'
 import {
+  createCubicBezierCurve,
   usePageRouteTransition,
   type PageRouteProps,
 } from 'screenstack'
 
 const duration = 320
 const easing = 'cubic-bezier(0.2, 0, 0, 1)'
+const curve = createCubicBezierCurve(0.2, 0, 0, 1)
 
 export function FadePageRoute({ children, style }: PageRouteProps) {
   const route = usePageRouteTransition()
@@ -188,9 +190,9 @@ export function FadePageRoute({ children, style }: PageRouteProps) {
 
   useLayoutEffect(
     () =>
-      route.registerHeroTransition({
-        push: { duration, easing },
-        pop: { duration, easing },
+      route.registerTransition({
+        push: { curve, duration, easing },
+        pop: { curve, duration, easing },
       }),
     [route],
   )
@@ -233,31 +235,32 @@ route.
 
 ### Synchronizing Hero transitions
 
-`registerHeroTransition()` tells `StackNavigator` how long matching `Hero`
-elements should fly during normal push and pop operations. It does not animate
-the route itself. Keep its duration and easing equal to the route's inline
-transition. The registered pop duration also determines when the exiting
-screen is removed. Return the registration cleanup from a layout effect as
-shown above.
+`registerTransition()` describes the route's timing independently of a
+built-in route component. `StackNavigator` uses `duration` and `easing` for
+normal Hero flights, and uses `curve` when an interactive gesture settles
+after release. It does not animate the route itself. Keep these values equal
+to the route's inline transition. The pop duration also determines when the
+exiting screen is removed. `registerHeroTransition()` remains as a deprecated
+compatibility alias.
 
 ### Adding an interactive pop gesture
 
 A custom route can drive its own pointer gesture and the matching Hero flight
 with the same controller:
 
-1. On pointer down, require `phase === 'active'` and `canPop`, then call
-   `startPopGesture()`. Continue only when it returns `true`.
+1. After recognizing a pop gesture, require `phase === 'active'` and `canPop`,
+   then call `beginPopGesture()`. Continue only when it returns a controller.
 2. While dragging, calculate a normalized progress from `0` to `1`. Apply that
-   progress to the route's inline transform and call
-   `updatePopGesture(progress)`.
+   progress to the route's inline transform and call `gesture.update(progress)`.
 3. On release, animate the route to progress `0` or `1`. Call
-   `cancelPopGesture(duration)` or `completePopGesture(duration)` with the same
-   settling duration.
+   `gesture.cancel(duration)` or `gesture.complete(duration)` with the same
+   settling duration. Hero uses the pop `curve` registered by the route.
 4. While the gesture is active, place a transparent, absolutely positioned
    interaction layer above the route. Set `touchAction: 'none'`,
    `pointerEvents: 'auto'`, and `userSelect: 'none'` inline so scrolling and
    controls inside the route cannot interrupt the gesture.
 
+The controller owns one gesture session and ignores updates after cancel or
+complete, so custom routes do not need Hero-specific cleanup code.
 `popGestureInProgress` reports whether the navigator currently owns an
-interactive pop for that screen. Progress values are clamped by ScreenStack,
-but the route should still calculate them from its own rendered width.
+interactive pop for that screen. Progress values are clamped by ScreenStack.

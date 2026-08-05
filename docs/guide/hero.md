@@ -58,20 +58,22 @@ A custom page route can use the same navigator-level controller:
 function CustomPageRoute({ children }: { children: React.ReactNode }) {
   const route = usePageRouteTransition()
   const startX = useRef(0)
+  const gesture = useRef<ReturnType<typeof route.beginPopGesture>>(null)
 
   return (
     <div
       onPointerDown={(event) => {
-        if (route.startPopGesture()) {
+        gesture.current = route.beginPopGesture()
+        if (gesture.current) {
           startX.current = event.clientX
         }
       }}
       onPointerMove={(event) => {
         const progress = (event.clientX - startX.current) / innerWidth
-        route.updatePopGesture(progress)
+        gesture.current?.update(progress)
       }}
-      onPointerUp={() => route.completePopGesture(300)}
-      onPointerCancel={() => route.cancelPopGesture(300)}
+      onPointerUp={() => gesture.current?.complete(300)}
+      onPointerCancel={() => gesture.current?.cancel(300)}
     >
       {children}
     </div>
@@ -79,7 +81,7 @@ function CustomPageRoute({ children }: { children: React.ReactNode }) {
 }
 ```
 
-Call `startPopGesture()` once, pass normalized progress values from `0` to `1`,
-and then complete or cancel the gesture. The Hero coordinator remains owned by
+Call `beginPopGesture()` once, pass normalized progress values from `0` to `1`
+to its controller, and then complete or cancel it. The Hero coordinator remains owned by
 `StackNavigator`, so custom routes do not need Hero-specific matching or
 overlay code.

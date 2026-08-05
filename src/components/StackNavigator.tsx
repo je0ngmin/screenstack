@@ -15,7 +15,8 @@ import {
 import { PageRouteContext } from '../context/PageRouteContext'
 import { StackNavigationContext } from '../context/StackNavigationContext'
 import type {
-  PageRouteHeroTransitionConfig,
+  PageRoutePopGesture,
+  PageRouteTransitionConfig,
   StackNavigation,
   StackNavigationState,
   StackNavigatorProps,
@@ -63,8 +64,8 @@ export const StackNavigator = forwardRef<
   const heroRegistryRef = useRef(
     new Map<string, Map<string, RegisteredHero>>(),
   )
-  const heroTransitionConfigsRef = useRef(
-    new Map<string, PageRouteHeroTransitionConfig>(),
+  const transitionConfigsRef = useRef(
+    new Map<string, PageRouteTransitionConfig>(),
   )
   const pendingHeroTransitionRef = useRef<PendingHeroTransition | null>(null)
   const cancelHeroTransitionRef = useRef<(() => void) | null>(null)
@@ -101,13 +102,13 @@ export const StackNavigator = forwardRef<
     setPopGestureScreenId(null)
   }, [])
 
-  const registerHeroTransition = useCallback(
-    (screenId: string, config: PageRouteHeroTransitionConfig) => {
-      heroTransitionConfigsRef.current.set(screenId, config)
+  const registerTransition = useCallback(
+    (screenId: string, config: PageRouteTransitionConfig) => {
+      transitionConfigsRef.current.set(screenId, config)
 
       return () => {
-        if (heroTransitionConfigsRef.current.get(screenId) === config) {
-          heroTransitionConfigsRef.current.delete(screenId)
+        if (transitionConfigsRef.current.get(screenId) === config) {
+          transitionConfigsRef.current.delete(screenId)
         }
       }
     },
@@ -136,7 +137,7 @@ export const StackNavigator = forwardRef<
     }
 
     pendingHeroTransitionRef.current = null
-    const timing = heroTransitionConfigsRef.current.get(
+    const timing = transitionConfigsRef.current.get(
       pending.timingScreenId,
     )?.[pending.direction]
     cancelHeroTransitionRef.current = animateHeroes(
@@ -199,13 +200,19 @@ export const StackNavigator = forwardRef<
   )
 
   const settlePopGesture = useCallback(
-    (screenId: string, completed: boolean, duration = 350) => {
+    (screenId: string, completed: boolean, duration?: number) => {
       const gesture = activePopGestureRef.current
       if (gesture?.screenId !== screenId) {
         return
       }
 
-      gesture.flight.settleTo(completed ? 1 : 0, duration)
+      const settleDuration =
+        duration ??
+        transitionConfigsRef.current.get(screenId)?.pop.duration ??
+        DEFAULT_TRANSITION_DURATION
+
+      const curve = transitionConfigsRef.current.get(screenId)?.pop.curve
+      gesture.flight.settleTo(completed ? 1 : 0, settleDuration, curve)
       cancelHeroTransitionRef.current = gesture.flight.cancel
       activePopGestureRef.current = null
       setPopGestureScreenId(null)
@@ -215,11 +222,43 @@ export const StackNavigator = forwardRef<
         setExitingScreenId(screenId)
         popTimerRef.current = setTimeout(
           () => completePop(screenId),
-          duration,
+          settleDuration,
         )
       }
     },
     [clearPopTimer, completePop],
+  )
+
+  const beginPopGesture = useCallback(
+    (screenId: string): PageRoutePopGesture | null => {
+      if (!startPopGesture(screenId)) {
+        return null
+      }
+
+      let settled = false
+      return {
+        cancel: (duration) => {
+          if (settled) {
+            return
+          }
+          settled = true
+          settlePopGesture(screenId, false, duration)
+        },
+        complete: (duration) => {
+          if (settled) {
+            return
+          }
+          settled = true
+          settlePopGesture(screenId, true, duration)
+        },
+        update: (progress) => {
+          if (!settled) {
+            updatePopGesture(screenId, progress)
+          }
+        },
+      }
+    },
+    [settlePopGesture, startPopGesture, updatePopGesture],
   )
 
   const startPop = useCallback(
@@ -244,7 +283,7 @@ export const StackNavigator = forwardRef<
       setExitingScreenId(screenId)
 
       const popDuration =
-        heroTransitionConfigsRef.current.get(screenId)?.pop.duration ??
+        transitionConfigsRef.current.get(screenId)?.pop.duration ??
         DEFAULT_TRANSITION_DURATION
 
       popTimerRef.current = setTimeout(
@@ -334,6 +373,7 @@ export const StackNavigator = forwardRef<
             <PageRouteContext.Provider
               key={screen.id}
               value={{
+                beginPopGesture: () => beginPopGesture(screen.id),
                 canPop: index > 0,
                 cancelPopGesture: (duration) =>
                   settlePopGesture(screen.id, false, duration),
@@ -343,7 +383,9 @@ export const StackNavigator = forwardRef<
                 popGestureInProgress:
                   popGestureScreenId === screen.id,
                 registerHeroTransition: (config) =>
-                  registerHeroTransition(screen.id, config),
+                  registerTransition(screen.id, config),
+                registerTransition: (config) =>
+                  registerTransition(screen.id, config),
                 startPopGesture: () => startPopGesture(screen.id),
                 updatePopGesture: (progress) =>
                   updatePopGesture(screen.id, progress),

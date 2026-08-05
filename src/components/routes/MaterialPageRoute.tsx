@@ -4,6 +4,10 @@ import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion'
 import { useRouteEnter } from '../../hooks/useRouteEnter'
 import type { PageRouteProps } from '../../types/navigation'
 import { pageRouteStyle } from '../../utils/routeStyles'
+import { createCubicBezierCurve } from '../../utils/transitionCurve'
+
+const TRANSITION_EASING = 'cubic-bezier(0.2, 0, 0, 1)'
+const TRANSITION_CURVE = createCubicBezierCurve(0.2, 0, 0, 1)
 
 export function MaterialPageRoute({
   children,
@@ -17,14 +21,16 @@ export function MaterialPageRoute({
 
   useLayoutEffect(
     () =>
-      route?.registerHeroTransition({
+      route?.registerTransition({
         pop: {
+          curve: TRANSITION_CURVE,
           duration: 280,
-          easing: 'cubic-bezier(0.2, 0, 0, 1)',
+          easing: TRANSITION_EASING,
         },
         push: {
+          curve: TRANSITION_CURVE,
           duration: 280,
-          easing: 'cubic-bezier(0.2, 0, 0, 1)',
+          easing: TRANSITION_EASING,
         },
       }),
     [route],
@@ -46,7 +52,7 @@ export function MaterialPageRoute({
             : 'translate3d(0, 18px, 0) scale(0.985)',
         transition: reducedMotion
           ? 'none'
-          : 'opacity 220ms ease, transform 280ms cubic-bezier(0.2, 0, 0, 1)',
+          : `opacity 220ms ease, transform 280ms ${TRANSITION_EASING}`,
       }}
     >
       {children}

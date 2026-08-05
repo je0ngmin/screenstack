@@ -7,16 +7,24 @@ import type {
 
 export type PageRoutePlatform = 'ios' | 'android'
 export type PageRoutePhase = 'active' | 'covered' | 'exiting'
+export type PageRouteTransitionCurve = (progress: number) => number
 
-export interface HeroTransitionTiming {
+export interface PageRouteTransitionTiming {
+  curve?: PageRouteTransitionCurve
   duration: number
   easing: string
 }
 
-export interface PageRouteHeroTransitionConfig {
-  pop: HeroTransitionTiming
-  push: HeroTransitionTiming
+/** @deprecated Use PageRouteTransitionTiming. */
+export type HeroTransitionTiming = PageRouteTransitionTiming
+
+export interface PageRouteTransitionConfig {
+  pop: PageRouteTransitionTiming
+  push: PageRouteTransitionTiming
 }
+
+/** @deprecated Use PageRouteTransitionConfig. */
+export type PageRouteHeroTransitionConfig = PageRouteTransitionConfig
 
 export interface PageRouteProps {
   children: ReactNode
@@ -45,16 +53,31 @@ export interface HeroProps {
   transitionOnUserGestures?: boolean
 }
 
+export interface PageRoutePopGesture {
+  cancel: (duration?: number) => void
+  complete: (duration?: number) => void
+  update: (progress: number) => void
+}
+
 export interface PageRouteTransition {
+  beginPopGesture: () => PageRoutePopGesture | null
   canPop: boolean
+  /** @deprecated Use the controller returned by beginPopGesture(). */
   cancelPopGesture: (duration?: number) => void
+  /** @deprecated Use the controller returned by beginPopGesture(). */
   completePopGesture: (duration?: number) => void
   phase: PageRoutePhase
   popGestureInProgress: boolean
-  registerHeroTransition: (
-    config: PageRouteHeroTransitionConfig,
+  registerTransition: (
+    config: PageRouteTransitionConfig,
   ) => () => void
+  /** @deprecated Use registerTransition. */
+  registerHeroTransition: (
+    config: PageRouteTransitionConfig,
+  ) => () => void
+  /** @deprecated Use beginPopGesture(). */
   startPopGesture: () => boolean
+  /** @deprecated Use the controller returned by beginPopGesture(). */
   updatePopGesture: (progress: number) => void
 }
 

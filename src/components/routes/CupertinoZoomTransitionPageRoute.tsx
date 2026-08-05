@@ -8,9 +8,13 @@ import {
 } from 'react'
 import { usePageRouteTransition } from '../../hooks/usePageRouteTransition'
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion'
-import type { CupertinoZoomTransitionPageRouteProps } from '../../types/navigation'
+import type {
+  CupertinoZoomTransitionPageRouteProps,
+  PageRoutePopGesture,
+} from '../../types/navigation'
 import { pageRouteStyle } from '../../utils/routeStyles'
 import { isInsideHorizontalScrollArea } from '../../utils/swipeGesture'
+import { createCubicBezierCurve } from '../../utils/transitionCurve'
 import {
   createSourceZoomTransition,
   type SourceZoomTransitionController,
@@ -20,6 +24,7 @@ import { InteractionGuard } from '../InteractionGuard'
 const DEFAULT_TRANSITION_DURATION = 400
 const INTERACTIVE_SETTLE_DURATION = 420
 const TRANSITION_EASING = 'cubic-bezier(0.32, 0.72, 0, 1)'
+const TRANSITION_CURVE = createCubicBezierCurve(0.32, 0.72, 0, 1)
 const SWIPE_COMPLETION_RATIO = 0.33
 const SWIPE_COMPLETION_VELOCITY = 0.5
 const PREVIOUS_ROUTE_SCALE = 0.9
@@ -41,6 +46,7 @@ interface SourceGeometry {
 
 interface DragState {
   active: boolean
+  gesture: PageRoutePopGesture | null
   lastTime: number
   lastX: number
   pointerId: number
@@ -327,12 +333,14 @@ export function CupertinoZoomTransitionPageRoute({
 
   useLayoutEffect(
     () =>
-      route.registerHeroTransition({
+      route.registerTransition({
         pop: {
+          curve: TRANSITION_CURVE,
           duration: transitionDuration,
           easing: TRANSITION_EASING,
         },
         push: {
+          curve: TRANSITION_CURVE,
           duration: transitionDuration,
           easing: TRANSITION_EASING,
         },
@@ -402,6 +410,7 @@ export function CupertinoZoomTransitionPageRoute({
     const width = bounds.width || window.innerWidth
     dragRef.current = {
       active: false,
+      gesture: null,
       lastTime: event.timeStamp,
       lastX: event.clientX,
       pointerId: event.pointerId,
@@ -434,11 +443,13 @@ export function CupertinoZoomTransitionPageRoute({
       ) {
         return
       }
-      if (!route.startPopGesture()) {
+      const gesture = route.beginPopGesture()
+      if (!gesture) {
         dragRef.current = null
         return
       }
       drag.active = true
+      drag.gesture = gesture
       setPreviousScreenScale(1, 0)
       measureSource()
       pushSourceFlightRef.current?.cancel()
@@ -466,7 +477,7 @@ export function CupertinoZoomTransitionPageRoute({
       PREVIOUS_ROUTE_SCALE + (1 - PREVIOUS_ROUTE_SCALE) * progress,
       0,
     )
-    route.updatePopGesture(progress)
+    drag.gesture?.update(progress)
     event.preventDefault()
     event.stopPropagation()
   }
@@ -521,7 +532,7 @@ export function CupertinoZoomTransitionPageRoute({
           sourceBounds,
         },
       )
-      route.completePopGesture(INTERACTIVE_SETTLE_DURATION)
+      drag.gesture?.complete(INTERACTIVE_SETTLE_DURATION)
       return
     }
 
@@ -530,7 +541,7 @@ export function CupertinoZoomTransitionPageRoute({
       PREVIOUS_ROUTE_SCALE,
       INTERACTIVE_SETTLE_DURATION,
     )
-    route.cancelPopGesture(INTERACTIVE_SETTLE_DURATION)
+    drag.gesture?.cancel(INTERACTIVE_SETTLE_DURATION)
     gestureSourceFlightRef.current?.settleTo(
       0,
       INTERACTIVE_SETTLE_DURATION,

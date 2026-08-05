@@ -57,20 +57,22 @@ Hero의 자식은 하나의 DOM 요소를 렌더링해야 합니다. 한 화면 
 function CustomPageRoute({ children }: { children: React.ReactNode }) {
   const route = usePageRouteTransition()
   const startX = useRef(0)
+  const gesture = useRef<ReturnType<typeof route.beginPopGesture>>(null)
 
   return (
     <div
       onPointerDown={(event) => {
-        if (route.startPopGesture()) {
+        gesture.current = route.beginPopGesture()
+        if (gesture.current) {
           startX.current = event.clientX
         }
       }}
       onPointerMove={(event) => {
         const progress = (event.clientX - startX.current) / innerWidth
-        route.updatePopGesture(progress)
+        gesture.current?.update(progress)
       }}
-      onPointerUp={() => route.completePopGesture(300)}
-      onPointerCancel={() => route.cancelPopGesture(300)}
+      onPointerUp={() => gesture.current?.complete(300)}
+      onPointerCancel={() => gesture.current?.cancel(300)}
     >
       {children}
     </div>
@@ -78,6 +80,6 @@ function CustomPageRoute({ children }: { children: React.ReactNode }) {
 }
 ```
 
-`startPopGesture()`를 한 번 호출하고 `0`부터 `1`까지 정규화한 진행률을 전달한 다음
-제스처를 완료하거나 취소하세요. Hero coordinator는 계속 `StackNavigator`가 관리하므로
+`beginPopGesture()`를 한 번 호출하고 반환된 controller에 `0`부터 `1`까지 정규화한
+진행률을 전달한 다음 제스처를 완료하거나 취소하세요. Hero coordinator는 계속 `StackNavigator`가 관리하므로
 사용자 정의 라우트에 Hero 매칭이나 오버레이 코드를 작성할 필요가 없습니다.

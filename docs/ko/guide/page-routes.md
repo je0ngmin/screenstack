@@ -151,12 +151,14 @@ import {
   useState,
 } from 'react'
 import {
+  createCubicBezierCurve,
   usePageRouteTransition,
   type PageRouteProps,
 } from 'screenstack'
 
 const duration = 320
 const easing = 'cubic-bezier(0.2, 0, 0, 1)'
+const curve = createCubicBezierCurve(0.2, 0, 0, 1)
 
 export function FadePageRoute({ children, style }: PageRouteProps) {
   const route = usePageRouteTransition()
@@ -176,9 +178,9 @@ export function FadePageRoute({ children, style }: PageRouteProps) {
 
   useLayoutEffect(
     () =>
-      route.registerHeroTransition({
-        push: { duration, easing },
-        pop: { duration, easing },
+      route.registerTransition({
+        push: { curve, duration, easing },
+        pop: { curve, duration, easing },
       }),
     [route],
   )
@@ -220,27 +222,28 @@ export function FadePageRoute({ children, style }: PageRouteProps) {
 
 ### Hero 전환 동기화
 
-`registerHeroTransition()`은 일반 push 및 pop 중 서로 매칭되는 `Hero`가 이동할 시간과 easing을
-`StackNavigator`에 알려줍니다. 이 함수가 라우트 자체를 애니메이션하지는 않습니다. 위 예제처럼
-라우트의 inline transition과 동일한 duration 및 easing을 등록하세요. 등록된 pop duration은
-종료 화면이 제거되는 시점에도 사용됩니다. layout effect에서는 등록 함수가 반환한 정리 함수를
-그대로 반환하세요.
+`registerTransition()`은 내장 Route 컴포넌트와 무관하게 Route의 timing을 등록합니다.
+`StackNavigator`는 일반 Hero 이동에 `duration`과 `easing`을 사용하고, 인터랙티브 제스처에서
+손을 놓은 뒤에는 `curve`를 사용합니다. Route 자체를 애니메이션하는 함수는 아니므로 inline
+transition과 동일한 값을 등록하세요. pop duration은 종료 화면을 제거하는 시점에도 사용됩니다.
+`registerHeroTransition()`은 호환성을 위한 deprecated alias로 유지됩니다.
 
 ### 인터랙티브 pop 제스처 추가
 
 커스텀 라우트는 같은 컨트롤러로 포인터 제스처와 Hero 이동을 함께 제어할 수 있습니다.
 
-1. 포인터를 누르면 `phase === 'active'`와 `canPop`을 확인한 다음
-   `startPopGesture()`를 호출합니다. 반환값이 `true`일 때만 제스처를 계속합니다.
+1. pop 제스처를 인식한 뒤 `phase === 'active'`와 `canPop`을 확인하고
+   `beginPopGesture()`를 호출합니다. controller가 반환될 때만 계속합니다.
 2. 드래그 중 `0`부터 `1` 사이의 진행률을 계산합니다. 라우트의 inline transform에 해당
-   진행률을 적용하고 `updatePopGesture(progress)`를 호출합니다.
+   진행률을 적용하고 `gesture.update(progress)`를 호출합니다.
 3. 포인터를 놓으면 라우트를 진행률 `0` 또는 `1`로 애니메이션합니다. 동일한 마무리
-   duration을 전달하여 `cancelPopGesture(duration)` 또는
-   `completePopGesture(duration)`를 호출합니다.
+   duration을 전달하여 `gesture.cancel(duration)` 또는
+   `gesture.complete(duration)`을 호출합니다. Hero는 Route가 등록한 pop `curve`를 사용합니다.
 4. 제스처 도중 라우트 위에 투명한 absolute 상호작용 레이어를 배치하세요. 라우트 내부의
    스크롤이나 컨트롤이 제스처를 끊지 않도록 `touchAction: 'none'`,
    `pointerEvents: 'auto'`, `userSelect: 'none'`을 inline style로 지정합니다.
 
-`popGestureInProgress`는 현재 내비게이터가 해당 화면의 인터랙티브 pop을 처리 중인지
-알려줍니다. ScreenStack은 진행률을 내부적으로 제한하지만, 라우트에서도 실제 렌더링된 너비를
-기준으로 진행률을 계산하는 것이 좋습니다.
+controller는 하나의 제스처 세션을 소유하고 cancel 또는 complete 이후 update를 무시하므로
+커스텀 Route에 Hero 전용 정리 코드를 둘 필요가 없습니다. `popGestureInProgress`는 현재
+Navigator가 해당 화면의 인터랙티브 pop을 처리 중인지 알려줍니다. ScreenStack은 진행률을
+내부적으로 제한합니다.

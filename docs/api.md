@@ -48,25 +48,38 @@ interface PageRouteTransition {
   canPop: boolean
   phase: 'active' | 'covered' | 'exiting'
   popGestureInProgress: boolean
-  registerHeroTransition(config: {
-    push: { duration: number; easing: string }
-    pop: { duration: number; easing: string }
+  beginPopGesture(): PageRoutePopGesture | null
+  registerTransition(config: {
+    push: { duration: number; easing: string; curve?: (progress: number) => number }
+    pop: { duration: number; easing: string; curve?: (progress: number) => number }
   }): () => void
-  startPopGesture(): boolean
-  updatePopGesture(progress: number): void
-  cancelPopGesture(duration?: number): void
-  completePopGesture(duration?: number): void
+}
+
+interface PageRoutePopGesture {
+  update(progress: number): void
+  cancel(duration?: number): void
+  complete(duration?: number): void
 }
 ```
 
-`progress` is clamped to the range from `0` to `1`. Start a gesture before
-sending progress updates, then either cancel or complete it. The duration
-should match the custom route's settling animation.
+`beginPopGesture()` returns `null` when the gesture cannot start. The returned
+controller owns that gesture and drives its Hero flight. Progress is clamped
+to the range from `0` to `1`. Finish it exactly once with `cancel()` or
+`complete()` using the custom route's settling duration.
 
-Call `registerHeroTransition()` from a layout effect and return its cleanup.
+Drag updates are applied directly so Hero stays under the pointer. After
+release, `cancel()` and `complete()` use the registered pop `curve`. Use
+`createCubicBezierCurve(x1, y1, x2, y2)` to create a progress function that
+matches the route's inline `cubic-bezier(...)` easing.
+
+The older four-method pop gesture API remains available for compatibility but
+is deprecated.
+
+Call `registerTransition()` from a layout effect and return its cleanup.
 This keeps normal push and pop Hero flights synchronized with the custom
 route's own inline transition timing. Its pop duration also controls when the
-exiting screen is removed from the stack.
+exiting screen is removed from the stack. `registerHeroTransition()` remains
+as a deprecated compatibility alias.
 
 ## `useStackNavigation()`
 

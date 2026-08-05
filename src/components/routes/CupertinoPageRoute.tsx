@@ -9,9 +9,13 @@ import {
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion'
 import { usePageRouteTransition } from '../../hooks/usePageRouteTransition'
 import { useRouteEnter } from '../../hooks/useRouteEnter'
-import type { CupertinoPageRouteProps } from '../../types/navigation'
+import type {
+  CupertinoPageRouteProps,
+  PageRoutePopGesture,
+} from '../../types/navigation'
 import { pageRouteStyle } from '../../utils/routeStyles'
 import { isInsideHorizontalScrollArea } from '../../utils/swipeGesture'
+import { createCubicBezierCurve } from '../../utils/transitionCurve'
 import { InteractionGuard } from '../InteractionGuard'
 
 const SWIPE_COMPLETION_RATIO = 0.33
@@ -20,14 +24,17 @@ const PUSH_TRANSITION_DURATION = 150
 const POP_TRANSITION_DURATION = 150
 const INTERACTIVE_TRANSITION_DURATION = 100
 const TRANSITION_EASING = 'cubic-bezier(.15,.64,.55,.90)'
+const TRANSITION_CURVE = createCubicBezierCurve(0.15, 0.64, 0.55, 0.9)
 const SWIPE_ACTIVATION_DISTANCE = 6
 const PREVIOUS_ROUTE_OFFSET = 24
 const HERO_TRANSITION_CONFIG = {
   pop: {
+    curve: TRANSITION_CURVE,
     duration: POP_TRANSITION_DURATION,
     easing: TRANSITION_EASING,
   },
   push: {
+    curve: TRANSITION_CURVE,
     duration: PUSH_TRANSITION_DURATION,
     easing: TRANSITION_EASING,
   },
@@ -35,6 +42,7 @@ const HERO_TRANSITION_CONFIG = {
 
 interface DragState {
   active: boolean
+  gesture: PageRoutePopGesture | null
   lastTime: number
   lastX: number
   pointerId: number
@@ -122,7 +130,7 @@ export function CupertinoPageRoute({
   }, [])
 
   useLayoutEffect(
-    () => route.registerHeroTransition(HERO_TRANSITION_CONFIG),
+    () => route.registerTransition(HERO_TRANSITION_CONFIG),
     [route],
   )
 
@@ -200,6 +208,7 @@ export function CupertinoPageRoute({
 
     dragRef.current = {
       active: false,
+      gesture: null,
       lastTime: event.timeStamp,
       lastX: event.clientX,
       pointerId: event.pointerId,
@@ -232,11 +241,13 @@ export function CupertinoPageRoute({
       ) {
         return
       }
-      if (!route.startPopGesture()) {
+      const gesture = route.beginPopGesture()
+      if (!gesture) {
         dragRef.current = null
         return
       }
       drag.active = true
+      drag.gesture = gesture
       setPreviousScreenProgress(0, 0)
       setIsSettling(false)
       setDragOffset(0)
@@ -255,7 +266,7 @@ export function CupertinoPageRoute({
     setDragOffset(offset)
     const progress = offset / drag.width
     setPreviousScreenProgress(progress, 0)
-    route.updatePopGesture(progress)
+    drag.gesture?.update(progress)
     event.preventDefault()
     event.stopPropagation()
   }
@@ -287,13 +298,13 @@ export function CupertinoPageRoute({
 
     if (shouldPop) {
       setPreviousScreenProgress(1, INTERACTIVE_TRANSITION_DURATION)
-      route.completePopGesture(INTERACTIVE_TRANSITION_DURATION)
+      drag.gesture?.complete(INTERACTIVE_TRANSITION_DURATION)
       setDragOffset(drag.width)
       return
     }
 
     setPreviousScreenProgress(0, INTERACTIVE_TRANSITION_DURATION)
-    route.cancelPopGesture(INTERACTIVE_TRANSITION_DURATION)
+    drag.gesture?.cancel(INTERACTIVE_TRANSITION_DURATION)
     setDragOffset(0)
     resetTimerRef.current = setTimeout(() => {
       setDragOffset(null)

@@ -2,6 +2,7 @@ import type {
   HeroElement,
   RegisteredHero,
 } from '../context/HeroContext'
+import type { PageRouteTransitionCurve } from '../types/navigation'
 
 const HERO_TRANSITION_DURATION = 350
 const HERO_TRANSITION_EASING = 'cubic-bezier(0.2, 0, 0, 1)'
@@ -17,7 +18,11 @@ export interface HeroSnapshot {
 export interface HeroTransitionController {
   cancel: () => void
   setProgress: (progress: number) => void
-  settleTo: (progress: 0 | 1, duration?: number) => void
+  settleTo: (
+    progress: 0 | 1,
+    duration?: number,
+    curve?: PageRouteTransitionCurve,
+  ) => void
 }
 
 interface HeroTransitionOptions {
@@ -152,7 +157,11 @@ function measureFinalRect(element: HeroElement) {
   let ancestor = element.parentElement
 
   while (ancestor) {
-    if (ancestor.hasAttribute('data-page-route')) {
+    const isPageRoute = ancestor.hasAttribute('data-page-route')
+    const isScreenRoute =
+      ancestor.hasAttribute('data-screen-id') &&
+      ancestor.hasAttribute('data-route-phase')
+    if (isPageRoute || isScreenRoute) {
       routeElements.push(ancestor)
       originalStyles.push({
         animation: ancestor.style.animation,
@@ -480,7 +489,11 @@ export function createHeroTransition(
     }
   }
 
-  const settleTo = (progress: 0 | 1, settleDuration = duration) => {
+  const settleTo = (
+    progress: 0 | 1,
+    settleDuration = duration,
+    curve?: PageRouteTransitionCurve,
+  ) => {
     if (!interactive) {
       return
     }
@@ -499,7 +512,12 @@ export function createHeroTransition(
     const startedAt = performance.now()
     const update = (time: number) => {
       const elapsed = Math.min(1, (time - startedAt) / settleDuration)
-      const eased = 1 - Math.pow(1 - elapsed, 3)
+      const curveProgress = curve
+        ? curve(elapsed)
+        : 1 - Math.pow(1 - elapsed, 3)
+      const eased = Number.isFinite(curveProgress)
+        ? Math.min(1, Math.max(0, curveProgress))
+        : elapsed
       setProgress(from + (progress - from) * eased)
 
       if (elapsed < 1) {
