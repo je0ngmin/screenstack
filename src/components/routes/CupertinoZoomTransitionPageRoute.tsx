@@ -133,6 +133,7 @@ export function CupertinoZoomTransitionPageRoute({
   const reducedMotion = usePrefersReducedMotion()
   const pageRef = useRef<HTMLDivElement>(null)
   const maskRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const enterFramesRef = useRef<[number, number] | null>(null)
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -155,6 +156,10 @@ export function CupertinoZoomTransitionPageRoute({
   const [geometryReady, setGeometryReady] = useState(false)
   const [dragOffset, setDragOffset] = useState<DragOffset | null>(null)
   const [settleTarget, setSettleTarget] = useState<SettleTarget>(null)
+  const restingBorderRadius =
+    typeof style?.borderRadius === 'number'
+      ? `${style.borderRadius}px`
+      : style?.borderRadius ?? '0px'
 
   const measureSource = useCallback(() => {
     const nextGeometry = readSourceGeometry(
@@ -260,6 +265,71 @@ export function CupertinoZoomTransitionPageRoute({
     gestureSourceVisibilityRef.current = null
   }, [sourceRef])
 
+  const prepareHeroMeasurement = useCallback(() => {
+    const page = pageRef.current
+    const mask = maskRef.current
+    const content = contentRef.current
+    if (!page || !mask || !content) {
+      return
+    }
+
+    const pageStyle = {
+      animation: page.style.animation,
+      transform: page.style.transform,
+      transition: page.style.transition,
+    }
+    const maskStyle = {
+      animation: mask.style.animation,
+      borderRadius: mask.style.borderRadius,
+      height: mask.style.height,
+      left: mask.style.left,
+      opacity: mask.style.opacity,
+      top: mask.style.top,
+      transform: mask.style.transform,
+      transition: mask.style.transition,
+      width: mask.style.width,
+    }
+    const contentStyle = {
+      animation: content.style.animation,
+      height: content.style.height,
+      transform: content.style.transform,
+      transition: content.style.transition,
+      width: content.style.width,
+    }
+    const pageHeight = page.clientHeight
+    const pageWidth = page.clientWidth
+
+    Object.assign(page.style, {
+      animation: 'none',
+      transform: 'none',
+      transition: 'none',
+    })
+    Object.assign(mask.style, {
+      animation: 'none',
+      borderRadius: restingBorderRadius,
+      height: `${pageHeight}px`,
+      left: '0px',
+      opacity: '1',
+      top: '0px',
+      transform: 'none',
+      transition: 'none',
+      width: `${pageWidth}px`,
+    })
+    Object.assign(content.style, {
+      animation: 'none',
+      height: `${pageHeight}px`,
+      transform: 'none',
+      transition: 'none',
+      width: `${pageWidth}px`,
+    })
+
+    return () => {
+      Object.assign(page.style, pageStyle)
+      Object.assign(mask.style, maskStyle)
+      Object.assign(content.style, contentStyle)
+    }
+  }, [restingBorderRadius])
+
   useLayoutEffect(() => {
     preparePreviousScreen()
     setPreviousScreenScale(1, 0)
@@ -334,6 +404,7 @@ export function CupertinoZoomTransitionPageRoute({
   useLayoutEffect(
     () =>
       route.registerTransition({
+        prepareHeroMeasurement,
         pop: {
           curve: TRANSITION_CURVE,
           duration: transitionDuration,
@@ -345,7 +416,7 @@ export function CupertinoZoomTransitionPageRoute({
           easing: TRANSITION_EASING,
         },
       }),
-    [route, transitionDuration],
+    [prepareHeroMeasurement, route, transitionDuration],
   )
 
   useEffect(
@@ -557,10 +628,6 @@ export function CupertinoZoomTransitionPageRoute({
 
   const atSource =
     !entered || settleTarget === 'source' || route.phase === 'exiting'
-  const restingBorderRadius =
-    typeof style?.borderRadius === 'number'
-      ? `${style.borderRadius}px`
-      : style?.borderRadius ?? '0px'
   const routeBorderRadius = atSource
     ? geometry?.borderRadius ?? '20px'
     : restingBorderRadius
@@ -662,6 +729,7 @@ export function CupertinoZoomTransitionPageRoute({
           }}
         >
           <div
+            ref={contentRef}
             data-cupertino-zoom-route-content=""
             style={{
               height: geometry?.pageHeight ?? '100%',

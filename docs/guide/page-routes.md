@@ -243,6 +243,31 @@ to the route's inline transition. The pop duration also determines when the
 exiting screen is removed. `registerHeroTransition()` remains as a deprecated
 compatibility alias.
 
+Hero positions are measured in the route's fully entered resting layout, even
+when a push or pop transition is currently running. For a custom route whose
+motion is contained in extra mask or content layers, provide
+`prepareHeroMeasurement`. It must synchronously apply the fully entered inline
+layout and return a function that restores the previous inline styles. The
+navigator invokes the restore function immediately after measuring, so this
+temporary state is not painted.
+
+```tsx
+route.registerTransition({
+  push: { curve, duration, easing },
+  pop: { curve, duration, easing },
+  prepareHeroMeasurement: () => {
+    const previousTransform = maskRef.current?.style.transform
+    if (maskRef.current) maskRef.current.style.transform = 'none'
+
+    return () => {
+      if (maskRef.current && previousTransform !== undefined) {
+        maskRef.current.style.transform = previousTransform
+      }
+    }
+  },
+})
+```
+
 ### Adding an interactive pop gesture
 
 A custom route can drive its own pointer gesture and the matching Hero flight

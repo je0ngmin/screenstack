@@ -19,6 +19,7 @@ export interface PageRouteTransitionTiming {
 export type HeroTransitionTiming = PageRouteTransitionTiming
 
 export interface PageRouteTransitionConfig {
+  prepareHeroMeasurement?: () => void | (() => void)
   pop: PageRouteTransitionTiming
   push: PageRouteTransitionTiming
 }

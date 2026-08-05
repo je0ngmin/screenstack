@@ -115,6 +115,21 @@ export const StackNavigator = forwardRef<
     [],
   )
 
+  const withHeroMeasurement = useCallback(
+    <Result,>(screenId: string, measure: () => Result) => {
+      const restore = transitionConfigsRef.current
+        .get(screenId)
+        ?.prepareHeroMeasurement?.()
+
+      try {
+        return measure()
+      } finally {
+        restore?.()
+      }
+    },
+    [],
+  )
+
   const clearPopTimer = useCallback(() => {
     if (popTimerRef.current) {
       clearTimeout(popTimerRef.current)
@@ -140,12 +155,16 @@ export const StackNavigator = forwardRef<
     const timing = transitionConfigsRef.current.get(
       pending.timingScreenId,
     )?.[pending.direction]
-    cancelHeroTransitionRef.current = animateHeroes(
-      pending.snapshots,
-      heroRegistryRef.current.get(pending.targetScreenId),
-      timing,
+    cancelHeroTransitionRef.current = withHeroMeasurement(
+      pending.targetScreenId,
+      () =>
+        animateHeroes(
+          pending.snapshots,
+          heroRegistryRef.current.get(pending.targetScreenId),
+          timing,
+        ),
     )
-  }, [exitingScreenId, screens])
+  }, [exitingScreenId, screens, withHeroMeasurement])
 
   const completePop = useCallback(
     (screenId: string) => {
@@ -177,16 +196,21 @@ export const StackNavigator = forwardRef<
       }
 
       cancelHeroTransition()
-      const flight = createHeroTransition(
+      const snapshots = withHeroMeasurement(screenId, () =>
         captureHeroes(heroRegistryRef.current.get(screenId)),
-        heroRegistryRef.current.get(targetScreenId),
-        { interactive: true },
+      )
+      const flight = withHeroMeasurement(targetScreenId, () =>
+        createHeroTransition(
+          snapshots,
+          heroRegistryRef.current.get(targetScreenId),
+          { interactive: true },
+        ),
       )
       activePopGestureRef.current = { flight, screenId }
       setPopGestureScreenId(screenId)
       return true
     },
-    [cancelHeroTransition, exitingScreenId, screens],
+    [cancelHeroTransition, exitingScreenId, screens, withHeroMeasurement],
   )
 
   const updatePopGesture = useCallback(
@@ -276,7 +300,9 @@ export const StackNavigator = forwardRef<
       cancelHeroTransition()
       pendingHeroTransitionRef.current = {
         direction: 'pop',
-        snapshots: captureHeroes(heroRegistryRef.current.get(screenId)),
+        snapshots: withHeroMeasurement(screenId, () =>
+          captureHeroes(heroRegistryRef.current.get(screenId)),
+        ),
         targetScreenId,
         timingScreenId: screenId,
       }
@@ -291,7 +317,13 @@ export const StackNavigator = forwardRef<
         Math.max(0, popDuration),
       )
     },
-    [cancelHeroTransition, completePop, exitingScreenId, screens],
+    [
+      cancelHeroTransition,
+      completePop,
+      exitingScreenId,
+      screens,
+      withHeroMeasurement,
+    ],
   )
 
   const navigation = useMemo<StackNavigation>(
@@ -305,11 +337,13 @@ export const StackNavigator = forwardRef<
         const sourceScreenId = screens[screens.length - 1]?.id
         pendingHeroTransitionRef.current = {
           direction: 'push',
-          snapshots: captureHeroes(
-            sourceScreenId
-              ? heroRegistryRef.current.get(sourceScreenId)
-              : undefined,
-          ),
+          snapshots: sourceScreenId
+            ? withHeroMeasurement(sourceScreenId, () =>
+                captureHeroes(
+                  heroRegistryRef.current.get(sourceScreenId),
+                ),
+              )
+            : new Map(),
           targetScreenId: nextScreen.id,
           timingScreenId: nextScreen.id,
         }
@@ -334,7 +368,13 @@ export const StackNavigator = forwardRef<
         setScreens([createScreen(element, id)])
       },
     }),
-    [cancelHeroTransition, clearPopTimer, screens, startPop],
+    [
+      cancelHeroTransition,
+      clearPopTimer,
+      screens,
+      startPop,
+      withHeroMeasurement,
+    ],
   )
 
   useImperativeHandle(ref, () => navigation, [navigation])

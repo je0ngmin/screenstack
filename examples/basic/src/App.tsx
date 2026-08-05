@@ -15,15 +15,15 @@ function Details({ title }: { title: string }) {
 
   return (
     <main className="page details-page">
-      {/* <Hero id="eyebrow1"> */}
+      <Hero id="eyebrow">
       <span className="eyebrow">Page route</span>
-      {/* </Hero> */}
-      {/* <Hero id="route-icon1"> */}
+      </Hero>
+      <Hero id="route-icon">
         <div className="route-icon route-icon-large">R</div>
-      {/* </Hero> */}
-      {/* <Hero id="title1"> */}
+      </Hero>
+      <Hero id="title">
       <h1>{title}</h1>
-      {/* </Hero> */}
+      </Hero>
       <p>Use the back button or swipe right from the left edge.</p>
       <button onClick={navigation.pop}>Back</button>
         <button

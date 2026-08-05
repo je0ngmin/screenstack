@@ -134,7 +134,7 @@ export function captureHeroes(
 
   for (const [id, hero] of heroes) {
     const { element } = hero
-    const rect = element.getBoundingClientRect()
+    const rect = measureRestingRect(element)
     if (rect.width <= 0 || rect.height <= 0) {
       continue
     }
@@ -151,8 +151,8 @@ export function captureHeroes(
   return snapshots
 }
 
-function measureFinalRect(element: HeroElement) {
-  const routeElements: HTMLElement[] = []
+function measureRestingRect(element: HeroElement) {
+  const ancestors: HTMLElement[] = []
   const originalStyles: InlineMotionStyle[] = []
   let ancestor = element.parentElement
 
@@ -161,30 +161,35 @@ function measureFinalRect(element: HeroElement) {
     const isScreenRoute =
       ancestor.hasAttribute('data-screen-id') &&
       ancestor.hasAttribute('data-route-phase')
+    ancestors.push(ancestor)
+    originalStyles.push({
+      animation: ancestor.style.animation,
+      transform: ancestor.style.transform,
+      transition: ancestor.style.transition,
+    })
+
+    // Disabling motion on every ancestor makes an in-flight CSS transition
+    // resolve to its inline destination before the rect is read. Route layers
+    // additionally use an identity transform because covered/exiting screens
+    // can intentionally keep an offset after their transition completes.
+    ancestor.style.animation = 'none'
+    ancestor.style.transition = 'none'
     if (isPageRoute || isScreenRoute) {
-      routeElements.push(ancestor)
-      originalStyles.push({
-        animation: ancestor.style.animation,
-        transform: ancestor.style.transform,
-        transition: ancestor.style.transition,
-      })
-      ancestor.style.animation = 'none'
       ancestor.style.transform = 'none'
-      ancestor.style.transition = 'none'
     }
     ancestor = ancestor.parentElement
   }
 
-  const rect = element.getBoundingClientRect()
-
-  routeElements.forEach((routeElement, index) => {
-    const original = originalStyles[index]
-    routeElement.style.animation = original.animation
-    routeElement.style.transform = original.transform
-    routeElement.style.transition = original.transition
-  })
-
-  return rect
+  try {
+    return element.getBoundingClientRect()
+  } finally {
+    ancestors.forEach((motionElement, index) => {
+      const original = originalStyles[index]
+      motionElement.style.animation = original.animation
+      motionElement.style.transform = original.transform
+      motionElement.style.transition = original.transition
+    })
+  }
 }
 
 function prefersReducedMotion() {
@@ -320,7 +325,7 @@ export function createHeroTransition(
     }
     const { element: target } = targetHero
 
-    const targetRect = measureFinalRect(target)
+    const targetRect = measureRestingRect(target)
     if (targetRect.width <= 0 || targetRect.height <= 0) {
       continue
     }
