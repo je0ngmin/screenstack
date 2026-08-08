@@ -228,28 +228,9 @@ export function FadePageRoute({ children, style }: PageRouteProps) {
 transition과 동일한 값을 등록하세요. pop duration은 종료 화면을 제거하는 시점에도 사용됩니다.
 `registerHeroTransition()`은 호환성을 위한 deprecated alias로 유지됩니다.
 
-Hero의 위치는 push 또는 pop 애니메이션이 진행 중이어도 Route가 완전히 진입한 평상시
-레이아웃을 기준으로 측정됩니다. 커스텀 Route가 별도의 mask나 content 계층을 움직인다면
-`prepareHeroMeasurement`를 제공하세요. 이 함수는 완전히 진입한 상태의 inline 레이아웃을
-동기적으로 적용하고, 이전 inline style을 복원하는 함수를 반환해야 합니다. Navigator는 측정
-직후 복원 함수를 호출하므로 이 임시 상태는 화면에 그려지지 않습니다.
-
-```tsx
-route.registerTransition({
-  push: { curve, duration, easing },
-  pop: { curve, duration, easing },
-  prepareHeroMeasurement: () => {
-    const previousTransform = maskRef.current?.style.transform
-    if (maskRef.current) maskRef.current.style.transform = 'none'
-
-    return () => {
-      if (maskRef.current && previousTransform !== undefined) {
-        maskRef.current.style.transform = previousTransform
-      }
-    }
-  },
-})
-```
+Hero의 도착점은 대상 요소의 현재 화면 geometry를 계속 따라갑니다. Route의 translate, scale,
+rotation이 반영되며 전환 중 매 프레임 도착점을 다시 측정합니다. 대상 Hero가 mount된 뒤
+위치나 크기가 변경되더라도 과거 좌표를 향하지 않고 새로운 위치에 맞춰 자동으로 이동합니다.
 
 ### 인터랙티브 pop 제스처 추가
 

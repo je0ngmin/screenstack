@@ -49,6 +49,12 @@ text, the old and new content overlap and cross-fade during the flight. The
 transition respects the user's reduced-motion preference and is skipped when
 reduced motion is enabled.
 
+The destination is live rather than a one-time snapshot. ScreenStack reads the
+target Hero's current screen geometry on every animation frame, including
+transforms inherited from its route. Translation, scale, and rotation are
+reflected in the flight, and layout changes after mount automatically update
+where the Hero is moving.
+
 ## Interactive custom routes
 
 `CupertinoPageRoute` drives its Hero flight with the pointer's swipe progress.

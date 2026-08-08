@@ -48,6 +48,11 @@ Hero의 자식은 하나의 DOM 요소를 렌더링해야 합니다. 한 화면 
 위치에 겹쳐 이동 중 교차 페이드합니다. 사용자가 모션 감소 설정을 활성화했다면
 애니메이션을 생략합니다.
 
+도착점은 한 번 저장한 좌표가 아니라 실시간 좌표입니다. ScreenStack은 매 애니메이션
+프레임마다 Route에서 상속된 transform을 포함해 대상 Hero의 현재 화면 geometry를
+읽습니다. translate, scale, rotation이 Hero 이동에 반영되며 mount 이후 레이아웃이
+바뀌어도 Hero가 향하는 위치가 자동으로 갱신됩니다.
+
 ## 인터랙티브 사용자 정의 라우트
 
 `CupertinoPageRoute`는 포인터의 스와이프 진행률로 Hero 이동을 구동합니다. 사용자
