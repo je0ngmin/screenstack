@@ -49,6 +49,16 @@ navigation.push(
 ```
 
 개별 라우트에서 제스처를 비활성화하려면 `swipeBackEnabled={false}`를 지정하세요.
+push 또는 pop 중 화면에 방향별 iOS 스타일 클리핑을 적용하려면
+`screenCornerRadius`를 지정하세요. 생략한 방향의 기본값은 `0`입니다.
+
+```tsx
+<CupertinoPageRoute
+  screenCornerRadius={{ top: 28, right: 28, bottom: 28, left: 28 }}
+>
+  <ProfilePage />
+</CupertinoPageRoute>
+```
 
 ## CupertinoZoomTransitionPageRoute
 

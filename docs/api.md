@@ -188,9 +188,23 @@ Accepts `PageRouteProps`.
 ```ts
 interface CupertinoPageRouteProps extends PageRouteProps {
   edgeWidth?: number
+  screenCornerRadius?: {
+    top?: number
+    right?: number
+    bottom?: number
+    left?: number
+  }
   swipeBackEnabled?: boolean
 }
 ```
+
+`screenCornerRadius` applies directional pixel radii while the route is pushing
+or popping. `top` and `bottom` control the vertical radius of their respective
+corners, while `left` and `right` control the horizontal radius. Omitted values
+default to `0`. ScreenStack uses `mask-image` (including the WebKit variant) for
+iOS-style clipping and also sets `border-radius` as a fallback. The mask and
+fallback radius are removed immediately, without another transition, when the
+route transition finishes.
 
 ### `CupertinoZoomTransitionPageRoute`
 

@@ -50,6 +50,16 @@ navigation.push(
 ```
 
 Set `swipeBackEnabled={false}` to disable the gesture for an individual route.
+Set `screenCornerRadius` to apply iOS-style directional clipping while the
+route is pushing or popping. Each omitted direction defaults to `0`.
+
+```tsx
+<CupertinoPageRoute
+  screenCornerRadius={{ top: 28, right: 28, bottom: 28, left: 28 }}
+>
+  <ProfilePage />
+</CupertinoPageRoute>
+```
 
 ## CupertinoZoomTransitionPageRoute
 

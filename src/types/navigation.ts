@@ -36,13 +36,21 @@ export interface PageRouteProps {
   style?: CSSProperties
 }
 
+export interface ScreenCornerRadius {
+  bottom?: number
+  left?: number
+  right?: number
+  top?: number
+}
+
 export interface CupertinoPageRouteProps extends PageRouteProps {
   edgeWidth?: number
+  screenCornerRadius?: ScreenCornerRadius
   swipeBackEnabled?: boolean
 }
 
 export interface CupertinoZoomTransitionPageRouteProps
-  extends CupertinoPageRouteProps {
+  extends Omit<CupertinoPageRouteProps, 'screenCornerRadius'> {
   sourceRef: RefObject<HTMLElement | null>
   transitionDuration?: number
 }

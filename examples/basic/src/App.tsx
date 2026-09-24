@@ -79,7 +79,14 @@ function Home() {
           data-testid="open-cupertino"
           onClick={() =>
             navigation.push(
-              <CupertinoPageRoute>
+              <CupertinoPageRoute
+                screenCornerRadius={{
+                  top: 28,
+                  right: 28,
+                  bottom: 28,
+                  left: 28,
+                }}
+              >
                 <Details title="Cupertino route" />
               </CupertinoPageRoute>,
             )

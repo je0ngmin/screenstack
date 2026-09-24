@@ -179,9 +179,22 @@ interface PageRouteProps {
 ```ts
 interface CupertinoPageRouteProps extends PageRouteProps {
   edgeWidth?: number
+  screenCornerRadius?: {
+    top?: number
+    right?: number
+    bottom?: number
+    left?: number
+  }
   swipeBackEnabled?: boolean
 }
 ```
+
+`screenCornerRadius`는 push 또는 pop 중에 방향별 px 단위 radius를 적용합니다.
+`top`과 `bottom`은 각각 위·아래 모서리의 세로 radius를, `left`와 `right`는 각각
+왼쪽·오른쪽 모서리의 가로 radius를 결정합니다. 생략한 값의 기본값은 `0`입니다.
+iOS 스타일 클리핑을 위해 표준 및 WebKit `mask-image`를 사용하고, 이를 지원하지 않는
+환경을 위해 `border-radius`도 함께 적용합니다. Route 전환이 끝나면 mask와 fallback
+radius를 별도 애니메이션 없이 즉시 제거합니다.
 
 ### `CupertinoZoomTransitionPageRoute`
 

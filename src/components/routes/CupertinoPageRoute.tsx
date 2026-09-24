@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -20,11 +21,11 @@ import { InteractionGuard } from '../InteractionGuard'
 
 const SWIPE_COMPLETION_RATIO = 0.33
 const SWIPE_COMPLETION_VELOCITY = 0.5
-const PUSH_TRANSITION_DURATION = 150
-const POP_TRANSITION_DURATION = 150
+const PUSH_TRANSITION_DURATION = 250
+const POP_TRANSITION_DURATION = 350
 const INTERACTIVE_TRANSITION_DURATION = 100
-const TRANSITION_EASING = 'cubic-bezier(.15,.64,.55,.90)'
-const TRANSITION_CURVE = createCubicBezierCurve(0.15, 0.64, 0.55, 0.9)
+const TRANSITION_EASING = 'cubic-bezier(.45,.75,.65,1.02)'
+const TRANSITION_CURVE = createCubicBezierCurve(0.45, 0.75, 0.65, 1.02)
 const SWIPE_ACTIVATION_DISTANCE = 6
 const PREVIOUS_ROUTE_OFFSET = 24
 const HERO_TRANSITION_CONFIG = {
@@ -59,9 +60,64 @@ interface SavedPreviousScreenStyle {
   willChange: string
 }
 
+interface ScreenSize {
+  height: number
+  width: number
+}
+
+interface ResolvedCornerRadius {
+  bottom: number
+  left: number
+  right: number
+  top: number
+}
+
+function createContinuousCornerMask(
+  { height, width }: ScreenSize,
+  requestedRadius: ResolvedCornerRadius,
+) {
+  const horizontalScale = Math.min(
+    1,
+    width / Math.max(1, requestedRadius.left + requestedRadius.right),
+  )
+  const verticalScale = Math.min(
+    1,
+    height / Math.max(1, requestedRadius.top + requestedRadius.bottom),
+  )
+  const left = requestedRadius.left * horizontalScale
+  const right = requestedRadius.right * horizontalScale
+  const top = requestedRadius.top * verticalScale
+  const bottom = requestedRadius.bottom * verticalScale
+
+  const leftControl = left * 0.6
+  const rightControl = right * 0.6
+  const topControl = top * 0.6
+  const bottomControl = bottom * 0.6
+  
+  const path = [
+    `M ${left} 0`,
+    `H ${width - right}`,
+    `C ${width - right + rightControl} 0 ${width} ${top - topControl} ${width} ${top}`,
+    `V ${height - bottom}`,
+    `C ${width} ${height - bottom + bottomControl} ${width - right + rightControl} ${height} ${width - right} ${height}`,
+    `H ${left}`,
+    `C ${left - leftControl} ${height} 0 ${height - bottom + bottomControl} 0 ${height - bottom}`,
+    `V ${top}`,
+    `C 0 ${top - topControl} ${left - leftControl} 0 ${left} 0`,
+    'Z',
+  ].join(' ')
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" ` +
+    `viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">` +
+    `<path fill="white" d="${path}"/></svg>`
+
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+}
+
 export function CupertinoPageRoute({
   children,
   className,
+  screenCornerRadius,
   style,
   swipeBackEnabled = true,
 }: CupertinoPageRouteProps) {
@@ -70,11 +126,42 @@ export function CupertinoPageRoute({
   const pageRef = useRef<HTMLDivElement>(null)
   const entered = useRouteEnter(pageRef)
   const dragRef = useRef<DragState | null>(null)
+  const cornerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const previousScreenRef = useRef<HTMLElement | null>(null)
   const previousScreenStyleRef = useRef<SavedPreviousScreenStyle | null>(null)
   const [dragOffset, setDragOffset] = useState<number | null>(null)
   const [isSettling, setIsSettling] = useState(false)
+  const [screenSize, setScreenSize] = useState<ScreenSize | null>(null)
+  const cornerRadius = useMemo(
+    () => ({
+      bottom: Math.max(0, screenCornerRadius?.bottom ?? 0),
+      left: Math.max(0, screenCornerRadius?.left ?? 0),
+      right: Math.max(0, screenCornerRadius?.right ?? 0),
+      top: Math.max(0, screenCornerRadius?.top ?? 0),
+    }),
+    [
+      screenCornerRadius?.bottom,
+      screenCornerRadius?.left,
+      screenCornerRadius?.right,
+      screenCornerRadius?.top,
+    ],
+  )
+  const hasCornerRadius =
+    cornerRadius.top > 0 ||
+    cornerRadius.right > 0 ||
+    cornerRadius.bottom > 0 ||
+    cornerRadius.left > 0
+  const [hasTransitionMask, setHasTransitionMask] = useState(
+    hasCornerRadius,
+  )
+
+  const clearCornerTimer = useCallback(() => {
+    if (cornerTimerRef.current) {
+      clearTimeout(cornerTimerRef.current)
+      cornerTimerRef.current = null
+    }
+  }, [])
 
   const preparePreviousScreen = useCallback(() => {
     if (previousScreenRef.current) {
@@ -153,17 +240,51 @@ export function CupertinoPageRoute({
 
   useLayoutEffect(() => {
     if (route.phase === 'exiting' && !isSettling) {
+      clearCornerTimer()
+      setHasTransitionMask(hasCornerRadius)
       setPreviousScreenProgress(1, POP_TRANSITION_DURATION)
     }
-  }, [isSettling, route.phase, setPreviousScreenProgress])
+  }, [
+    clearCornerTimer,
+    isSettling,
+    route.phase,
+    hasCornerRadius,
+    setPreviousScreenProgress,
+  ])
+
+  useEffect(() => {
+    if (!entered || route.phase !== 'active') {
+      return
+    }
+
+    clearCornerTimer()
+    if (reducedMotion || !hasCornerRadius) {
+      setHasTransitionMask(false)
+      return
+    }
+
+    cornerTimerRef.current = setTimeout(() => {
+      setHasTransitionMask(false)
+      cornerTimerRef.current = null
+    }, PUSH_TRANSITION_DURATION)
+
+    return clearCornerTimer
+  }, [
+    clearCornerTimer,
+    entered,
+    reducedMotion,
+    route.phase,
+    hasCornerRadius,
+  ])
 
   useEffect(
     () => () => {
       if (resetTimerRef.current) {
         clearTimeout(resetTimerRef.current)
       }
+      clearCornerTimer()
     },
-    [],
+    [clearCornerTimer],
   )
 
   useEffect(() => {
@@ -187,6 +308,37 @@ export function CupertinoPageRoute({
     return () => {
       page.removeEventListener('touchmove', blockActiveGestureScroll, true)
     }
+  }, [])
+
+  useLayoutEffect(() => {
+    const page = pageRef.current
+    if (!page) {
+      return
+    }
+
+    const updateScreenSize = () => {
+      const bounds = page.getBoundingClientRect()
+      const nextSize = {
+        height: page.offsetHeight || bounds.height,
+        width: page.offsetWidth || bounds.width,
+      }
+      setScreenSize((current) =>
+        current?.height === nextSize.height &&
+        current.width === nextSize.width
+          ? current
+          : nextSize,
+      )
+    }
+
+    updateScreenSize()
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateScreenSize)
+      return () => window.removeEventListener('resize', updateScreenSize)
+    }
+
+    const observer = new ResizeObserver(updateScreenSize)
+    observer.observe(page)
+    return () => observer.disconnect()
   }, [])
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -248,6 +400,8 @@ export function CupertinoPageRoute({
       }
       drag.active = true
       drag.gesture = gesture
+      clearCornerTimer()
+      setHasTransitionMask(hasCornerRadius)
       setPreviousScreenProgress(0, 0)
       setIsSettling(false)
       setDragOffset(0)
@@ -309,6 +463,7 @@ export function CupertinoPageRoute({
     resetTimerRef.current = setTimeout(() => {
       setDragOffset(null)
       setIsSettling(false)
+      setHasTransitionMask(false)
     }, INTERACTIVE_TRANSITION_DURATION)
   }
 
@@ -339,6 +494,21 @@ export function CupertinoPageRoute({
         : `transform ${routeTransitionDuration}ms ${TRANSITION_EASING}`
   const showSwipeGuard =
     swipeBackEnabled && route.canPop && dragOffset !== null
+  const cornerMaskActive =
+    hasCornerRadius &&
+    (hasTransitionMask ||
+      route.phase === 'exiting' ||
+      dragOffset !== null ||
+      isSettling)
+  const maskImage = useMemo(
+    () =>
+      cornerMaskActive && screenSize
+        ? createContinuousCornerMask(screenSize, cornerRadius)
+        : cornerMaskActive
+          ? 'radial-gradient(white, black)'
+          : 'none',
+    [cornerMaskActive, cornerRadius, screenSize],
+  )
 
   return (
     <>
@@ -355,11 +525,20 @@ export function CupertinoPageRoute({
         style={{
           ...pageRouteStyle,
           ...style,
+          borderRadius: cornerMaskActive
+            ? `${cornerRadius.left}px ${cornerRadius.right}px ${cornerRadius.right}px ${cornerRadius.left}px / ${cornerRadius.top}px ${cornerRadius.top}px ${cornerRadius.bottom}px ${cornerRadius.bottom}px`
+            : 0,
           boxShadow: '-2px 0 14px rgb(0 0 0 / 18%)',
+          maskImage,
+          maskRepeat: 'no-repeat',
+          maskSize: '100% 100%',
           touchAction: 'pan-y',
           transform,
           transition,
           willChange: phase === 'covered' ? 'auto' : 'transform',
+          WebkitMaskImage: maskImage,
+          WebkitMaskRepeat: 'no-repeat',
+          WebkitMaskSize: '100% 100%',
         }}
       >
         {children}

@@ -22,6 +22,7 @@ export type {
   PageRouteTransitionCurve,
   PageRouteTransitionStatus,
   PageRouteTransitionTiming,
+  ScreenCornerRadius,
   StackNavigation,
   StackNavigationRef,
   StackNavigatorProps,
