@@ -9,8 +9,11 @@ ScreenStack is a lightweight, type-safe screen stack for React applications.
 ## StackNavigator
 
 All navigation APIs must be used inside a `StackNavigator`.
-`useStackNavigation()` returns the navigation object from the closest
+`useStackNavigatior()` returns the shared navigation object from the closest
 `StackNavigator` above the calling component.
+The object is shared by every screen in that navigator and exposes `actived`
+and the stack mutation methods. Use `usePageRoute()` for per-screen
+`id`, `position`, `canPop`, `isActive`, and `transitionStatus` state.
 
 An application may render multiple `StackNavigator` components. Each one owns
 an independent screen stack. Navigators may also be nested; descendants of a
@@ -60,11 +63,11 @@ pnpm i screenstack
 import {
   AdaptivePageRoute,
   StackNavigator,
-  useStackNavigation,
+  useStackNavigatior,
 } from 'screenstack'
 
 function HomePage() {
-  const { push, pop } = useStackNavigation()
+  const { push, pop } = useStackNavigatior()
 
   return (
     <>

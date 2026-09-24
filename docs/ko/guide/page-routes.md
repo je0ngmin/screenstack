@@ -73,11 +73,11 @@ Route가 교차 fade되고 기존 화면은 살짝 축소됩니다. pop에서는
 import { useRef } from 'react'
 import {
   CupertinoZoomTransitionPageRoute,
-  useStackNavigation,
+  useStackNavigatior,
 } from 'screenstack'
 
 function GalleryItem() {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
   const sourceRef = useRef<HTMLButtonElement>(null)
 
   return (

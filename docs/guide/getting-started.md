@@ -13,7 +13,7 @@ React and React DOM are peer dependencies. The library supports React 18 and
 newer.
 
 ::: warning StackNavigator is required
-Navigation only works inside a `StackNavigator`. The `useStackNavigation()`
+Navigation only works inside a `StackNavigator`. The `useStackNavigatior()`
 hook reads the closest navigator above the calling component.
 :::
 
@@ -26,17 +26,17 @@ are positioned to fill that container.
 import {
   AdaptivePageRoute,
   StackNavigator,
-  useStackNavigation,
+  useStackNavigatior,
 } from 'screenstack'
 
 function DetailsPage() {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
 
   return <button onClick={navigation.pop}>Back</button>
 }
 
 function HomePage() {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
 
   return (
     <button
@@ -90,7 +90,7 @@ Navigators can also be nested:
 </StackNavigator>
 ```
 
-Inside `LocalFlowPage`, `useStackNavigation()` controls the inner navigator
+Inside `LocalFlowPage`, `useStackNavigatior()` controls the inner navigator
 because it is the closest `StackNavigator`. Components outside the inner
 navigator continue to use the outer stack.
 

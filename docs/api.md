@@ -6,13 +6,14 @@ Creates a navigation context and renders screens as a stack.
 
 Every navigation flow requires a `StackNavigator`. An application may render
 multiple navigators for independent stacks or nest navigators for local flows.
-When navigators are nested, `useStackNavigation()` returns the closest
+When navigators are nested, `useStackNavigatior()` returns the closest
 navigator's API.
 
 | Prop | Type | Description |
 | --- | --- | --- |
 | `children` | `ReactNode` | Initial screen content. |
 | `initialScreen` | `ReactNode` | Explicit initial content; takes precedence over `children`. |
+| `actived` | `boolean` | Whether this navigator is active. Defaults to `true`. |
 | `className` | `string` | Optional class name for consumer styling. |
 | `ref` | `Ref<StackNavigation>` | Optional imperative navigation ref. |
 
@@ -45,7 +46,11 @@ without depending on a built-in route component.
 
 ```ts
 interface PageRouteTransition {
+  id: string
+  position: number
   canPop: boolean
+  isActive: boolean
+  transitionStatus: 'pushing' | 'completed' | 'popping'
   phase: 'active' | 'covered' | 'exiting'
   popGestureInProgress: boolean
   beginPopGesture(): PageRoutePopGesture | null
@@ -81,15 +86,15 @@ route's own inline transition timing. Its pop duration also controls when the
 exiting screen is removed from the stack. `registerHeroTransition()` remains
 as a deprecated compatibility alias.
 
-## `useStackNavigation()`
+## `useStackNavigatior()`
 
-Returns the current screen's `StackNavigationState` object. It must be called under a
-`StackNavigator`.
+Returns the shared state and navigation methods of the closest
+`StackNavigator`. Every caller under the same navigator receives the same
+navigator-level values.
 
 ```ts
-interface StackNavigationState extends StackNavigation {
-  canGoBack: boolean
-  isActive: boolean
+interface StackNavigation {
+  actived: boolean
   push(element: ReactNode, id?: string): void
   pop(): void
   replace(element: ReactNode, id?: string): void
@@ -97,10 +102,32 @@ interface StackNavigationState extends StackNavigation {
 }
 ```
 
-`canGoBack` belongs to the screen where the hook is called. A root screen
-therefore keeps `false` after another screen is pushed. `isActive` is `true`
-only while that screen is at the top of its nearest navigator; it changes to
-`false` when another screen is pushed over it.
+`actived` reflects the prop passed to `StackNavigator`. Screen-specific state,
+including whether that screen can pop, belongs to `usePageRoute()`.
+
+## `usePageRoute()`
+
+Returns state belonging to the screen where the hook is called.
+
+```ts
+interface PageRouteState {
+  id: string
+  position: number
+  canPop: boolean
+  isActive: boolean
+  transitionStatus: 'pushing' | 'completed' | 'popping'
+}
+```
+
+The root screen has `position: 0`. `canPop` is `false` only for that root
+screen. `isActive` is `true` only for the currently active screen while its
+`StackNavigator` has `actived={true}`. It becomes `false` when another screen
+is pushed or the navigator is deactivated.
+
+`transitionStatus` is `pushing` during the screen's entrance transition,
+`popping` during a programmatic or interactive pop, and `completed` while no
+route transition is running. The animation-free `PageRoute` moves directly to
+`completed`.
 
 ### `push`
 
@@ -135,11 +162,14 @@ navigationRef.current?.push(<PageRoute>...</PageRoute>)
 `current` is `null` before the navigator mounts and after it unmounts. Create a
 separate ref for each independent or nested navigator. Because a ref is not
 bound to a screen, it exposes the navigation methods and navigator-level
-`canGoBack`, but not the hook's screen-specific `isActive` state.
+`actived`, but screen-specific state is available only through
+`usePageRoute()`.
 
 ## Route components
 
 ### `PageRoute`
+
+The base route fills the screen and applies no transition animation.
 
 ```ts
 interface PageRouteProps {

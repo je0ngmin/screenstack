@@ -12,7 +12,7 @@ pnpm add screenstack
 React와 React DOM은 peer dependency입니다. React 18 이상을 지원합니다.
 
 ::: warning StackNavigator는 필수입니다
-내비게이션은 반드시 `StackNavigator` 안에서 사용해야 합니다. `useStackNavigation()` 훅은
+내비게이션은 반드시 `StackNavigator` 안에서 사용해야 합니다. `useStackNavigatior()` 훅은
 호출한 컴포넌트에서 가장 가까운 상위 `StackNavigator`를 사용합니다.
 :::
 
@@ -25,17 +25,17 @@ React와 React DOM은 peer dependency입니다. React 18 이상을 지원합니�
 import {
   AdaptivePageRoute,
   StackNavigator,
-  useStackNavigation,
+  useStackNavigatior,
 } from 'screenstack'
 
 function DetailsPage() {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
 
   return <button onClick={navigation.pop}>뒤로 가기</button>
 }
 
 function HomePage() {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
 
   return (
     <button
@@ -89,7 +89,7 @@ export function App() {
 </StackNavigator>
 ```
 
-`LocalFlowPage`에서 호출한 `useStackNavigation()`은 가장 가까운 내부 `StackNavigator`를
+`LocalFlowPage`에서 호출한 `useStackNavigatior()`는 가장 가까운 내부 `StackNavigator`를
 제어합니다. 내부 내비게이터 밖의 컴포넌트는 계속 외부 스택을 사용합니다.
 
 ## Workspace 예제 실행

@@ -4,7 +4,7 @@
 
 ```tsx
 function ProductCard() {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
 
   return (
     <button
@@ -35,7 +35,7 @@ function ProductDetails() {
 ## Push할 때 라우트 선택하기
 
 ```tsx
-const navigation = useStackNavigation()
+const navigation = useStackNavigatior()
 
 navigation.push(
   <MaterialPageRoute>

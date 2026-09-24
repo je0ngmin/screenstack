@@ -7,6 +7,10 @@ import type {
 
 export type PageRoutePlatform = 'ios' | 'android'
 export type PageRoutePhase = 'active' | 'covered' | 'exiting'
+export type PageRouteTransitionStatus =
+  | 'pushing'
+  | 'completed'
+  | 'popping'
 export type PageRouteTransitionCurve = (progress: number) => number
 
 export interface PageRouteTransitionTiming {
@@ -59,9 +63,16 @@ export interface PageRoutePopGesture {
   update: (progress: number) => void
 }
 
-export interface PageRouteTransition {
-  beginPopGesture: () => PageRoutePopGesture | null
+export interface PageRouteState {
   canPop: boolean
+  id: string
+  isActive: boolean
+  position: number
+  transitionStatus: PageRouteTransitionStatus
+}
+
+export interface PageRouteTransition extends PageRouteState {
+  beginPopGesture: () => PageRoutePopGesture | null
   /** @deprecated Use the controller returned by beginPopGesture(). */
   cancelPopGesture: (duration?: number) => void
   /** @deprecated Use the controller returned by beginPopGesture(). */
@@ -87,20 +98,17 @@ export interface StackScreen {
 }
 
 export interface StackNavigation {
-  canGoBack: boolean
+  actived: boolean
   push: (element: ReactNode, id?: string) => void
   pop: () => void
   replace: (element: ReactNode, id?: string) => void
   reset: (element: ReactNode, id?: string) => void
 }
 
-export interface StackNavigationState extends StackNavigation {
-  isActive: boolean
-}
-
 export type StackNavigationRef = RefObject<StackNavigation | null>
 
 export interface StackNavigatorProps {
+  actived?: boolean
   children?: ReactNode
   className?: string
   initialScreen?: ReactNode

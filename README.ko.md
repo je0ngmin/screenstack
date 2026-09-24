@@ -9,8 +9,11 @@ ScreenStack은 React 애플리케이션을 위한 가볍고 타입 안전한 화
 ## StackNavigator
 
 모든 내비게이션 API는 반드시 `StackNavigator` 안에서 사용해야 합니다.
-`useStackNavigation()`은 호출한 컴포넌트에서 가장 가까운 상위 `StackNavigator`의
+`useStackNavigatior()`는 호출한 컴포넌트에서 가장 가까운 상위 `StackNavigator`의
 내비게이션 객체를 반환합니다.
+이 객체는 같은 Navigator의 모든 화면에서 공유되며 `actived`와 스택 변경
+함수를 제공합니다. 화면별 `id`, `position`, `canPop`, `isActive`, `transitionStatus` 상태는
+`usePageRoute()`로 읽으세요.
 
 하나의 애플리케이션에서 여러 `StackNavigator`를 렌더링할 수 있으며 각 내비게이터는 독립적인
 화면 스택을 관리합니다. 내비게이터를 서로 중첩할 수도 있으며, 중첩된 내비게이터의 하위
@@ -60,11 +63,11 @@ pnpm i screenstack
 import {
   AdaptivePageRoute,
   StackNavigator,
-  useStackNavigation,
+  useStackNavigatior,
 } from 'screenstack'
 
 function HomePage() {
-  const { push, pop } = useStackNavigation()
+  const { push, pop } = useStackNavigatior()
 
   return (
     <>

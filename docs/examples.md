@@ -4,7 +4,7 @@
 
 ```tsx
 function ProductCard() {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
 
   return (
     <button
@@ -35,7 +35,7 @@ function ProductDetails() {
 ## Choose a route at push time
 
 ```tsx
-const navigation = useStackNavigation()
+const navigation = useStackNavigatior()
 
 navigation.push(
   <MaterialPageRoute>

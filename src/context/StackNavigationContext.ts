@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import type { StackNavigationState } from '../types/navigation'
+import type { StackNavigation } from '../types/navigation'
 
 export const StackNavigationContext =
-  createContext<StackNavigationState | null>(null)
+  createContext<StackNavigation | null>(null)

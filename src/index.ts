@@ -1,7 +1,8 @@
 export * from './components'
 export { StackNavigator } from './components/StackNavigator'
+export { usePageRoute } from './hooks/usePageRoute'
 export { usePageRouteTransition } from './hooks/usePageRouteTransition'
-export { useStackNavigation } from './hooks/useStackNavigation'
+export { useStackNavigatior } from './hooks/useStackNavigatior'
 export { useStackNavigationRef } from './hooks/useStackNavigationRef'
 export { createCubicBezierCurve } from './utils/transitionCurve'
 export type {
@@ -16,12 +17,13 @@ export type {
   PageRoutePopGesture,
   PageRoutePlatform,
   PageRouteProps,
+  PageRouteState,
   PageRouteTransitionConfig,
   PageRouteTransitionCurve,
+  PageRouteTransitionStatus,
   PageRouteTransitionTiming,
   StackNavigation,
   StackNavigationRef,
-  StackNavigationState,
   StackNavigatorProps,
   StackScreen,
 } from './types/navigation'

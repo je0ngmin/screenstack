@@ -18,7 +18,6 @@ import type {
   PageRoutePopGesture,
   PageRouteTransitionConfig,
   StackNavigation,
-  StackNavigationState,
   StackNavigatorProps,
 } from '../types/navigation'
 import { createScreen } from '../utils/createScreen'
@@ -50,17 +49,19 @@ export const StackNavigator = forwardRef<
   StackNavigation,
   StackNavigatorProps
 >(function StackNavigator(
-  { children, className, initialScreen },
+  { actived = true, children, className, initialScreen },
   ref,
 ) {
   const [screens, setScreens] = useState(() => [
     createScreen(initialScreen ?? children, 'root'),
   ])
   const [exitingScreenId, setExitingScreenId] = useState<string | null>(null)
+  const [pushingScreenId, setPushingScreenId] = useState<string | null>(null)
   const [popGestureScreenId, setPopGestureScreenId] = useState<string | null>(
     null,
   )
   const popTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const heroRegistryRef = useRef(
     new Map<string, Map<string, RegisteredHero>>(),
   )
@@ -122,12 +123,20 @@ export const StackNavigator = forwardRef<
     }
   }, [])
 
+  const clearPushTimer = useCallback(() => {
+    if (pushTimerRef.current) {
+      clearTimeout(pushTimerRef.current)
+      pushTimerRef.current = null
+    }
+  }, [])
+
   useEffect(
     () => () => {
       clearPopTimer()
+      clearPushTimer()
       cancelHeroTransition()
     },
-    [cancelHeroTransition, clearPopTimer],
+    [cancelHeroTransition, clearPopTimer, clearPushTimer],
   )
 
   useLayoutEffect(() => {
@@ -145,7 +154,24 @@ export const StackNavigator = forwardRef<
       heroRegistryRef.current.get(pending.targetScreenId),
       timing,
     )
-  }, [exitingScreenId, screens])
+
+    if (pending.direction === 'push') {
+      clearPushTimer()
+      const pushDuration = Math.max(0, timing?.duration ?? 0)
+      if (pushDuration === 0) {
+        setPushingScreenId((current) =>
+          current === pending.targetScreenId ? null : current,
+        )
+      } else {
+        pushTimerRef.current = setTimeout(() => {
+          setPushingScreenId((current) =>
+            current === pending.targetScreenId ? null : current,
+          )
+          pushTimerRef.current = null
+        }, pushDuration)
+      }
+    }
+  }, [clearPushTimer, exitingScreenId, screens])
 
   const completePop = useCallback(
     (screenId: string) => {
@@ -167,6 +193,7 @@ export const StackNavigator = forwardRef<
       const activeScreenId = screens[screens.length - 1]?.id
       const targetScreenId = screens[screens.length - 2]?.id
       if (
+        !actived ||
         screens.length <= 1 ||
         exitingScreenId ||
         activePopGestureRef.current ||
@@ -177,6 +204,8 @@ export const StackNavigator = forwardRef<
       }
 
       cancelHeroTransition()
+      clearPushTimer()
+      setPushingScreenId(null)
       const flight = createHeroTransition(
         captureHeroes(heroRegistryRef.current.get(screenId)),
         heroRegistryRef.current.get(targetScreenId),
@@ -186,7 +215,13 @@ export const StackNavigator = forwardRef<
       setPopGestureScreenId(screenId)
       return true
     },
-    [cancelHeroTransition, exitingScreenId, screens],
+    [
+      actived,
+      cancelHeroTransition,
+      clearPushTimer,
+      exitingScreenId,
+      screens,
+    ],
   )
 
   const updatePopGesture = useCallback(
@@ -274,6 +309,8 @@ export const StackNavigator = forwardRef<
       }
 
       cancelHeroTransition()
+      clearPushTimer()
+      setPushingScreenId(null)
       pendingHeroTransitionRef.current = {
         direction: 'pop',
         snapshots: captureHeroes(heroRegistryRef.current.get(screenId)),
@@ -291,17 +328,25 @@ export const StackNavigator = forwardRef<
         Math.max(0, popDuration),
       )
     },
-    [cancelHeroTransition, completePop, exitingScreenId, screens],
+    [
+      cancelHeroTransition,
+      clearPushTimer,
+      completePop,
+      exitingScreenId,
+      screens,
+    ],
   )
 
   const navigation = useMemo<StackNavigation>(
     () => ({
-      canGoBack: screens.length > 1,
+      actived,
       push: (element, id) => {
         cancelHeroTransition()
         clearPopTimer()
+        clearPushTimer()
         setExitingScreenId(null)
         const nextScreen = createScreen(element, id)
+        setPushingScreenId(nextScreen.id)
         const sourceScreenId = screens[screens.length - 1]?.id
         pendingHeroTransitionRef.current = {
           direction: 'push',
@@ -321,7 +366,9 @@ export const StackNavigator = forwardRef<
       replace: (element, id) => {
         cancelHeroTransition()
         clearPopTimer()
+        clearPushTimer()
         setExitingScreenId(null)
+        setPushingScreenId(null)
         setScreens((current) => [
           ...current.slice(0, -1),
           createScreen(element, id),
@@ -330,11 +377,20 @@ export const StackNavigator = forwardRef<
       reset: (element, id) => {
         cancelHeroTransition()
         clearPopTimer()
+        clearPushTimer()
         setExitingScreenId(null)
+        setPushingScreenId(null)
         setScreens([createScreen(element, id)])
       },
     }),
-    [cancelHeroTransition, clearPopTimer, screens, startPop],
+    [
+      actived,
+      cancelHeroTransition,
+      clearPopTimer,
+      clearPushTimer,
+      screens,
+      startPop,
+    ],
   )
 
   useImperativeHandle(ref, () => navigation, [navigation])
@@ -343,13 +399,8 @@ export const StackNavigator = forwardRef<
     ? Math.max(0, screens.length - 2)
     : screens.length - 1
   const activeScreen = screens[activeIndex]
-  const navigatorContextValue = useMemo<StackNavigationState>(
-    () => ({ ...navigation, isActive: true }),
-    [navigation],
-  )
-
   return (
-    <StackNavigationContext.Provider value={navigatorContextValue}>
+    <StackNavigationContext.Provider value={navigation}>
       <div
         className={className}
         data-screen-id={activeScreen?.id}
@@ -363,11 +414,14 @@ export const StackNavigator = forwardRef<
                 ? 'active'
                 : 'covered'
           const blocksPreviousRoute = index < screens.length - 1
-          const screenNavigation: StackNavigationState = {
-            ...navigation,
-            canGoBack: index > 0,
-            isActive: phase === 'active',
-          }
+          const isActive = actived && phase === 'active'
+          const transitionStatus =
+            screen.id === exitingScreenId ||
+            screen.id === popGestureScreenId
+              ? 'popping'
+              : screen.id === pushingScreenId
+                ? 'pushing'
+                : 'completed'
 
           return (
             <PageRouteContext.Provider
@@ -379,7 +433,11 @@ export const StackNavigator = forwardRef<
                   settlePopGesture(screen.id, false, duration),
                 completePopGesture: (duration) =>
                   settlePopGesture(screen.id, true, duration),
+                id: screen.id,
+                isActive,
                 phase,
+                position: index,
+                transitionStatus,
                 popGestureInProgress:
                   popGestureScreenId === screen.id,
                 registerHeroTransition: (config) =>
@@ -391,53 +449,51 @@ export const StackNavigator = forwardRef<
                   updatePopGesture(screen.id, progress),
               }}
             >
-              <StackNavigationContext.Provider value={screenNavigation}>
-                <HeroContext.Provider
-                  value={{
-                    registerHero: (id, hero) =>
-                      registerHero(screen.id, id, hero),
+              <HeroContext.Provider
+                value={{
+                  registerHero: (id, hero) =>
+                    registerHero(screen.id, id, hero),
+                }}
+              >
+                <div
+                  aria-hidden={!isActive}
+                  data-route-phase={phase}
+                  data-screen-id={screen.id}
+                  style={{
+                    ...screenStyle,
+                    pointerEvents: isActive ? 'auto' : 'none',
                   }}
                 >
-                  <div
-                    aria-hidden={phase === 'covered'}
-                    data-route-phase={phase}
-                    data-screen-id={screen.id}
-                    style={{
-                      ...screenStyle,
-                      pointerEvents: phase === 'active' ? 'auto' : 'none',
-                    }}
-                  >
-                    {screen.element}
-                    {blocksPreviousRoute && (
-                      <InteractionGuard
-                        aria-hidden="true"
-                        data-route-interaction-guard=""
-                        onClick={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                        }}
-                        onPointerDown={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                        }}
-                        style={{
-                          backgroundColor: 'transparent',
-                          bottom: 0,
-                          left: 0,
-                          overscrollBehavior: 'none',
-                          pointerEvents: 'auto',
-                          position: 'absolute',
-                          right: 0,
-                          top: 0,
-                          touchAction: 'none',
-                          userSelect: 'none',
-                          WebkitUserSelect: 'none',
-                        }}
-                      />
-                    )}
-                  </div>
-                </HeroContext.Provider>
-              </StackNavigationContext.Provider>
+                  {screen.element}
+                  {blocksPreviousRoute && (
+                    <InteractionGuard
+                      aria-hidden="true"
+                      data-route-interaction-guard=""
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                      }}
+                      onPointerDown={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                      }}
+                      style={{
+                        backgroundColor: 'transparent',
+                        bottom: 0,
+                        left: 0,
+                        overscrollBehavior: 'none',
+                        pointerEvents: 'auto',
+                        position: 'absolute',
+                        right: 0,
+                        top: 0,
+                        touchAction: 'none',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none',
+                      }}
+                    />
+                  )}
+                </div>
+              </HeroContext.Provider>
             </PageRouteContext.Provider>
           )
         })}

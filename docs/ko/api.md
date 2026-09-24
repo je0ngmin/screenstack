@@ -6,12 +6,13 @@
 
 모든 내비게이션 흐름에는 `StackNavigator`가 필요합니다. 독립적인 스택이 필요하면 여러
 내비게이터를 렌더링할 수 있고, 지역적인 흐름이 필요하면 내비게이터를 중첩할 수도 있습니다.
-중첩된 경우 `useStackNavigation()`은 가장 가까운 `StackNavigator`의 API를 반환합니다.
+중첩된 경우 `useStackNavigatior()`는 가장 가까운 `StackNavigator`의 API를 반환합니다.
 
 | Prop | 타입 | 설명 |
 | --- | --- | --- |
 | `children` | `ReactNode` | 초기 화면 콘텐츠입니다. |
 | `initialScreen` | `ReactNode` | 명시적인 초기 콘텐츠입니다. 지정하면 `children`보다 우선합니다. |
+| `actived` | `boolean` | 이 Navigator의 활성 여부입니다. 기본값은 `true`입니다. |
 | `className` | `string` | 사용자 스타일을 위한 선택적 class 이름입니다. |
 | `ref` | `Ref<StackNavigation>` | 외부 제어를 위한 선택적 내비게이션 ref입니다. |
 
@@ -43,7 +44,11 @@ interface HeroProps {
 
 ```ts
 interface PageRouteTransition {
+  id: string
+  position: number
   canPop: boolean
+  isActive: boolean
+  transitionStatus: 'pushing' | 'completed' | 'popping'
   phase: 'active' | 'covered' | 'exiting'
   popGestureInProgress: boolean
   beginPopGesture(): PageRoutePopGesture | null
@@ -78,14 +83,14 @@ transition duration 및 easing과 동기화됩니다. 등록된 pop duration은 
 스택에서 제거하는 시점에도 사용됩니다. `registerHeroTransition()`은 호환성을 위한
 deprecated alias로 유지됩니다.
 
-## `useStackNavigation()`
+## `useStackNavigatior()`
 
-현재 화면의 `StackNavigationState` 객체를 반환합니다. 반드시 `StackNavigator` 아래에서 호출해야 합니다.
+가장 가까운 `StackNavigator`의 공유 상태와 내비게이션 함수를 반환합니다. 같은 Navigator
+아래의 모든 호출자는 동일한 Navigator 단위 값을 받습니다.
 
 ```ts
-interface StackNavigationState extends StackNavigation {
-  canGoBack: boolean
-  isActive: boolean
+interface StackNavigation {
+  actived: boolean
   push(element: ReactNode, id?: string): void
   pop(): void
   replace(element: ReactNode, id?: string): void
@@ -93,9 +98,30 @@ interface StackNavigationState extends StackNavigation {
 }
 ```
 
-`canGoBack`은 훅을 호출한 화면을 기준으로 합니다. 따라서 루트 화면의 값은 다른 화면을
-push한 후에도 `false`로 유지됩니다. `isActive`는 해당 화면이 가장 가까운 Navigator의
-맨 위에 있을 때만 `true`이며, 그 위에 다른 화면이 push되면 `false`로 변경됩니다.
+`actived`는 `StackNavigator`에 전달한 prop을 반영합니다. 해당 화면이 pop 가능한지를
+포함한 화면별 상태는 `usePageRoute()`에 속합니다.
+
+## `usePageRoute()`
+
+훅을 호출한 화면에 속하는 상태를 반환합니다.
+
+```ts
+interface PageRouteState {
+  id: string
+  position: number
+  canPop: boolean
+  isActive: boolean
+  transitionStatus: 'pushing' | 'completed' | 'popping'
+}
+```
+
+루트 화면의 `position`은 `0`입니다. `canPop`은 루트 화면에서만 `false`입니다.
+`isActive`는 현재 활성 화면이면서 `StackNavigator`의 `actived`가 `true`일 때만
+`true`입니다. 다른 화면이 push되거나 Navigator가 비활성화되면 `false`가 됩니다.
+
+`transitionStatus`는 화면 진입 중 `pushing`, 일반 또는 인터랙티브 pop 중 `popping`,
+Route 전환이 없는 평상시에는 `completed`입니다. 애니메이션이 없는 `PageRoute`는 즉시
+`completed`로 전환됩니다.
 
 ### `push`
 
@@ -127,12 +153,14 @@ navigationRef.current?.push(<PageRoute>...</PageRoute>)
 
 Navigator가 mount되기 전과 unmount된 후에는 `current`가 `null`입니다. 독립적이거나
 중첩된 Navigator마다 별도의 ref를 생성하세요. ref는 특정 화면에 속하지 않으므로
-내비게이션 함수와 Navigator 기준 `canGoBack`을 제공하지만, 훅 전용 화면 상태인
-`isActive`는 제공하지 않습니다.
+내비게이션 함수와 Navigator 기준 `actived`를 제공하지만 화면별 상태는
+`usePageRoute()`에서만 제공됩니다.
 
 ## 라우트 컴포넌트
 
 ### `PageRoute`
+
+기본 Route는 화면을 채우는 레이아웃만 적용하며 전환 애니메이션은 전혀 적용하지 않습니다.
 
 ```ts
 interface PageRouteProps {

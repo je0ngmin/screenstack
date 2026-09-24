@@ -197,7 +197,7 @@ export function CupertinoPageRoute({
     if (
       !swipeBackEnabled ||
       !route.canPop ||
-      route.phase !== 'active' ||
+      !route.isActive ||
       isInsideHorizontalScrollArea(event.target, pageRef.current) ||
       (event.pointerType === 'mouse' && event.button !== 0)
     ) {

@@ -6,12 +6,12 @@ import {
   Hero,
   MaterialPageRoute,
   StackNavigator,
-  useStackNavigation,
+  useStackNavigatior,
 } from 'screenstack'
 import './App.css'
 
 function Details({ title }: { title: string }) {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
 
   return (
     <main className="page details-page">
@@ -38,13 +38,15 @@ function Details({ title }: { title: string }) {
         >
           Open Cupertino
         </button>
-      {Array(100).fill(0).map((v) => <div>스크롤 공간</div>)}
+      {Array.from({ length: 100 }, (_, index) => (
+        <div key={index}>스크롤 공간</div>
+      ))}
     </main>
   )
 }
 
 function Home() {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
   const zoomSourceRef = useRef<HTMLButtonElement>(null)
 
   return (

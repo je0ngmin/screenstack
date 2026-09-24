@@ -7,11 +7,11 @@
 import {
   Hero,
   MaterialPageRoute,
-  useStackNavigation,
+  useStackNavigatior,
 } from 'screenstack'
 
 function ProductCard() {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
 
   return (
     <button

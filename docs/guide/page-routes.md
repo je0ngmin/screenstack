@@ -81,11 +81,11 @@ full-screen position.
 import { useRef } from 'react'
 import {
   CupertinoZoomTransitionPageRoute,
-  useStackNavigation,
+  useStackNavigatior,
 } from 'screenstack'
 
 function GalleryItem() {
-  const navigation = useStackNavigation()
+  const navigation = useStackNavigatior()
   const sourceRef = useRef<HTMLButtonElement>(null)
 
   return (
